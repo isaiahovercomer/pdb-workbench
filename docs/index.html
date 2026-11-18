@@ -1,0 +1,1045 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PDB 文件工作台</title>
+<style>
+:root{color-scheme:light;--ink:#153d37;--muted:#51645b;--edge:#d3dbce;--paper:#f7f7f0;--green:#164c42;--gold:#edc879}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.65 "Source Sans 3","Microsoft JhengHei",system-ui,sans-serif}header{background:#fff;border-bottom:1px solid var(--edge)}.wrap{width:min(1100px,calc(100% - 40px));margin:auto}.bar{height:62px;display:flex;align-items:center;justify-content:space-between}.brand{display:flex;align-items:center;gap:10px;font-weight:750}.icon{width:30px;height:30px;background:var(--green);border-radius:6px;text-align:center;color:white;font:700 21px/31px Georgia}.bar a{color:var(--muted);font-size:14px}.hero{background:var(--ink);color:white;border-radius:16px;padding:clamp(26px,5vw,58px);margin:30px 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,30%);gap:20px;align-items:center;position:relative;overflow:hidden}.hero h1{font:700 clamp(32px,5vw,54px)/1.25 "Baskervville","PMingLiU",serif;letter-spacing:.04em;margin:0}.hero p{margin:12px 0 22px;color:#e0e9df}.primary,.secondary,button{font:inherit;border-radius:7px;padding:9px 15px;font-weight:650;cursor:pointer}.hero a{display:inline-flex;background:var(--gold);color:#283a2f;text-decoration:none}.docmark{transform:rotate(-8deg);width:145px;height:160px;justify-self:center;border:1px solid #b7c6a8;box-shadow:9px 9px #285347,10px 10px #9aac8d,18px 18px #285347,19px 19px #849d84;background:repeating-linear-gradient(0deg,#e9e9d4 0 17px,#c0c8ac 17px 18px);display:grid;place-items:center}.docmark b{font:700 30px Georgia;letter-spacing:.08em;background:var(--ink);color:var(--gold);padding:6px 12px}
+nav{display:flex;gap:8px;border-bottom:1px solid var(--edge);margin-bottom:20px}nav button{border:0;border-radius:0;background:transparent;color:var(--muted);padding:10px 15px;border-bottom:3px solid transparent}nav .active{color:var(--green);border-color:var(--green)}.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start;margin-bottom:34px}.card{background:#fff;border:1px solid var(--edge);border-radius:12px;padding:clamp(18px,3vw,30px)}h2,h3,p{margin:0}h2{font-size:22px;letter-spacing:.02em}h3{font-size:17px}.sub,.note{font-size:14px;color:var(--muted)}.sub{margin:4px 0 18px}label{display:block;font-size:14px;font-weight:700;margin:15px 0 5px}input,select,textarea{display:block;width:100%;border-radius:5px;border:1px solid #acb9ab;color:var(--ink);background:white;font:inherit;padding:8px 10px}input[type=file]{font-size:14px;background:#f8faf5}textarea{min-height:170px;resize:vertical}.twocol{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(105px,1fr);gap:10px}button.primary{color:white;background:var(--green);border:0;margin-top:16px}button:disabled{opacity:.5;cursor:default}a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #b77b28;outline-offset:2px}.sheet{min-height:176px;background:#faf9f2;border-top:3px solid #ada27c;margin:15px 0;padding:18px;overflow-wrap:anywhere}.sheet p{white-space:pre-wrap;margin-top:10px;font-family:"PMingLiU",serif}.status{margin-top:8px;color:#804c16;font-size:14px;white-space:pre-line}dl{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;margin-bottom:0}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}[hidden]{display:none!important}.footer{padding:0 0 25px;color:var(--muted);font-size:13px}a{color:var(--green)}@media(max-width:700px){.grid{grid-template-columns:1fr}.hero{grid-template-columns:1fr}.docmark{display:none}.wrap{width:calc(100% - 28px)}.hero{margin:16px 0}.bar{height:52px}.twocol{grid-template-columns:1fr}nav button{padding-inline:8px}}
+.hero{padding:clamp(22px,3.5vw,38px);margin:22px 0 18px}.bookplate{justify-self:end;display:grid;align-content:center;text-align:center;border:1px solid #a4b2a2;border-left:9px double #a4b2a2;padding:16px 30px;transform:rotate(-3deg);color:#f1e6c9}.bookplate b{font:italic 36px Georgia,serif}.bookplate span{font-size:12px;letter-spacing:.15em}.toolsbar{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:18px;border:0}.toolsbar button{border:1px solid var(--edge);background:white;color:var(--ink);border-radius:6px;padding:8px 12px}.toolsbar button.active{background:var(--green);color:white}.wrap,.card,fieldset{min-width:0}#xsFields summary{cursor:pointer;font-weight:700;padding:8px 0}#xsFields details{border-top:1px solid var(--edge);padding:6px 0 14px}input[type=checkbox]{width:auto;display:inline-block}#capture{padding:clamp(14px,3vw,28px);border:1px solid var(--edge);border-radius:12px;background:white}@media(max-width:700px){.bookplate{display:none}.toolsbar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.toolsbar button{font-size:14px;padding:7px 2px}.hero{margin:14px 0}.hero p{margin:6px 0 16px}}
+</style>
+<header><div class="bar wrap"><div class="brand"><span class="icon" aria-hidden="true">≡</span> PDB 文件工作台</div></div></header>
+<main class="wrap">
+<section class="hero"><div><h1>電子書製作工作台</h1><p>把網頁、書報與詩歌編成一本書。選擇工作區，即可開始製作、轉檔或閱讀。</p><a class="primary" href="./workbench.zip" download>下載 Windows 轉檔工作台</a></div><div class="bookplate" aria-hidden="true"><b>PDB</b><span>PDB · EPUB</span></div></section>
+<nav class="toolsbar" aria-label="工作區"><button type="button" id="projectTab" class="active" aria-pressed="true" aria-controls="project">快速專案</button><button type="button" id="batchTab" class="" aria-pressed="false" aria-controls="batch">批次製書</button><button type="button" id="editorTab" class="" aria-pressed="false" aria-controls="editor">詩歌與書報</button><button type="button" id="captureTab" class="" aria-pressed="false" aria-controls="capture">網頁合訂</button><button type="button" id="readerTab" class="" aria-pressed="false" aria-controls="reader">閱讀書架</button><button type="button" id="buildTab" class="" aria-pressed="false" aria-controls="build">製作 PalmDOC</button><button type="button" id="inspectTab" class="" aria-pressed="false" aria-controls="inspect">快速辨識</button><button type="button" id="settingsTab" class="" aria-pressed="false" aria-controls="settings">轉檔環境</button></nav>
+<section id="project" class="grid"><form id="projectForm" class="card"><h2>建立 PDB 轉檔專案</h2><p class="sub">設定書名、來源與輸出位置，下載 PDB 轉檔工具 可開啟的 .ixl 專案。</p>
+<label for="ixTitle">書名</label><input id="ixTitle" required placeholder="例如：讀書筆記">
+<label for="ixSources">來源網址或 Windows 完整路徑（每行一筆）</label><textarea id="ixSources" required style="min-height:99px" placeholder="https://example.org/book/index.html&#10;C:\Books\notes.html"></textarea>
+<label for="ixDest">輸出 PDB 完整路徑</label><input id="ixDest" required placeholder="C:\Books\讀書筆記.pdb">
+<div class="twocol"><div><label for="ixDepth">跟隨同站連結</label><input type="number" id="ixDepth" min="0" max="65535" value="0" required aria-describedby="depthHint"><span id="depthHint" class="note">0 只收來源，1 加入下一層。</span></div><div><label for="ixImages">圖片</label><select id="ixImages"><option value="include">收錄圖片</option><option value="exclude">略過圖片</option></select></div></div>
+<button class="primary">下載 .ixl 專案</button><p role="status" class="status" id="ixStatus"></p></form>
+<aside class="card"><h2>如何取得 PDB</h2><ol style="padding-inline-start:1.5em"><li>在執行 PDB 轉檔工具 的電腦上，確認來源檔案與輸出資料夾都已存在。</li><li>用 PDB 轉檔工具 開啟下載的 .ixl，選取文件並執行轉換。</li><li>到設定的輸出位置取得 .pdb。</li></ol><h3>直接上傳檔案轉換</h3><p class="note">下載上方 Windows 工作台並解壓縮，執行 Start.cmd，首次選擇原廠 轉檔引擎 ZIP 或執行檔，即可進入本機網頁。</p><p></p></aside></section>
+<section id="build" class="grid" hidden><div class="card"><h2>純文字轉 PalmDOC</h2><p class="sub">在瀏覽器直接轉檔，適合支援 PalmDOC 的閱讀器。</p>
+<div class="twocol"><div><label for="source">匯入文字檔</label><input type="file" id="source" accept=".txt,text/plain"></div><div><label for="inputEnc">來源編碼</label><select id="inputEnc"><option value="auto">自動辨識</option><option value="utf-8">UTF-8</option><option value="big5">Big5</option></select></div></div>
+<label for="book">文件名稱</label><input id="book" value="我的文件" maxlength="130">
+<label for="content">內文</label><textarea id="content" placeholder="貼上文字，或從上方匯入 TXT 檔。"></textarea>
+<label for="outputEnc">輸出文字編碼</label><select id="outputEnc"><option value="big5">Big5（繁體中文舊式閱讀器）</option><option value="utf-8">UTF-8（需閱讀器支援）</option></select>
+<label for="palmCompression">文字記錄儲存方式</label><select id="palmCompression"><option value="none">未壓縮</option><option value="palmdoc">PalmDOC 壓縮</option></select>
+<button id="exportBtn" class="primary" disabled>下載 PalmDOC PDB</button><p class="status" id="buildStatus" role="status"></p></div>
+<aside class="card"><h2>內容預覽</h2><div class="sheet"><h3 id="pvTitle">我的文件</h3><p id="pvText">尚未加入內文</p></div><p class="note" id="pvCount">0 字元</p><p class="note">PalmDOC 儲存純文字。需要保留圖文與連結時，請使用上方的 PDB 工作台。</p></aside></section>
+<section id="inspect" class="card" hidden><h2>檢視 PDB 檔頭</h2><p class="sub">選擇檔案後，可查看資料庫名稱、類型、建立程式與記錄數。</p><label for="pdb">PDB 檔案</label><input type="file" id="pdb" accept=".pdb"><p id="inspectStatus" class="status" role="status"></p><dl id="info"></dl></section>
+<section id="batch" aria-label="批次製書" hidden>
+<div id="ixl-editor" class="ixle">
+<style>
+.ixle{color:#173c35}.ixle .ix-actions{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;margin:12px 0}.ixle button,.ixle .ix-file{background:#fff;border:1px solid #bccdc3;border-radius:7px;color:#20463b;cursor:pointer;font:inherit;padding:.4rem .8rem}.ixle .ix-save{background:#174a3c;color:white}.ixle .ix-book{width:min(100%,22rem)}.ixle details{background:#fff;border:1px solid #d1dacf;border-radius:10px;margin:8px 0;padding:10px 14px}.ixle summary{font-weight:700;cursor:pointer}.ixle .ix-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,235px),1fr));gap:10px 16px;margin-top:12px}.ixle .ix-grid label{display:grid;align-content:start;gap:3px;margin:0;font-size:.9rem}.ixle input,.ixle select,.ixle textarea{max-width:100%;width:100%;box-sizing:border-box;font:inherit}.ixle textarea{min-height:4.2rem}.ixle .ix-raw{min-height:14rem;font-family:monospace}.ixle .ix-status{min-height:1.4em}.ixle .ix-file input{max-width:16em}.ixle .ix-note{font-size:.9rem;color:#52685a}.ixle .ix-wide{grid-column:1/-1}
+</style>
+<h2>批次轉檔專案</h2>
+<p>每本書各自設定來源與輸出位置。下載 IXL 後，可在 PDB 轉檔工具 開啟，或交由 PDB 轉檔引擎 批次轉檔。</p>
+<div class="ix-actions"><label class="ix-file">匯入 IXL <input id="ix-file" type="file" accept=".ixl,.xml"></label><button type="button" class="ix-save" id="ix-save">下載整份 IXL</button></div>
+<div class="ix-actions"><label>編輯書籍 <select class="ix-book" id="ix-book"></select></label><button id="ix-add" type="button">新增書籍</button><button id="ix-copy" type="button">複製</button><button id="ix-up" type="button">上移</button><button id="ix-down" type="button">下移</button><button id="ix-del" type="button">移除書籍</button></div>
+<div id="ix-fields"></div>
+<details id="ix-raw-box"><summary>完整 IXL 原始碼</summary><p class="ix-note">可直接編輯專案 XML，包括 Cookie、外部文件對照及其他原廠擴充設定。有密碼的專案會在 XML 中保存密碼。</p><textarea class="ix-raw" id="ix-raw" aria-label="完整專案 XML" spellcheck="false"></textarea><div class="ix-actions"><button type="button" id="ix-apply">套用 XML</button><button type="button" id="ix-reset">重新載入目前設定</button></div></details>
+<p role="status" aria-live="polite" class="ix-status" id="ix-status"></p>
+</div>
+<script>
+(()=>{
+'use strict';
+const root=document.getElementById('ixl-editor');
+const el=id=>root.querySelector('#ix-'+id);
+const yn='yes|no',ie='include|exclude',ad='allow|disallow';
+const names={yes:'是',no:'否',include:'收錄',exclude:'排除',allow:'允許',disallow:'禁止',keep:'保留',ignore:'忽略',IgnoreBody:'忽略頁面本體',IgnoreBDP:'忽略本體、區塊及段落',none:'無',lossy:'僅有損來源',all:'全部',hourly:'每小時',daily:'每日',weekly:'每週',monthly:'每月',once:'一次',every:'固定間隔',only:'指定時段',Mon:'週一',Tue:'週二',Wed:'週三',Thu:'週四',Fri:'週五',Sat:'週六',Sun:'週日',soft:'可跨頁捲動及翻頁',hard:'可跨頁翻頁',rigid:'限本頁',KeepAll:'全部保留',RemoveAll:'全部移除',KeepIfSpaceTab:'下行有縮排時保留'};
+const defs=[
+['來源與書名','',[
+['Destination/Title','書名'],['Source/Sources/Path','來源網址或檔案路徑（每行一項，依序收錄）','lines'],['Destination/Files/Path','輸出 PDB 路徑（每行一項）','lines'],['Entry/Groups/Group','所屬群組（每行一路徑，如 /詩歌/詩集）','lines'],['Source/CharSet','來源預設編碼'],['DocumentOptions/CharSet','輸出文字編碼'],['Destination/HotSync/Path','HotSync 目的地（每行一項）','lines'],['Destination/ActiveSync/Path','ActiveSync 目的地（每行一項）','lines']]],
+['連結與擷取','LinkOptions',[
+['MaximumDepth','連結深度','int'],['FollowOffsite','跟隨跨站連結',yn],['MaximumOffsiteDepth','跨站深度','int'],['SubDirOnly','限來源子目錄',yn],['UnresolvedDetail','未收錄頁面的網址',ie],['Include/Pattern','收錄規則（每行一項，如 WC::*/songs/*）','lines'],['Exclude/Pattern','排除規則（每行一項，如 WC::*.zip）','lines']]],
+['圖片與壓縮','ImageOptions',[
+['Images','圖片',ie],['AltText','圖片替代文字',ie],['ResizeLargeImages','縮小大型圖片',yn],['MaximumWidth','最大寬度（像素）','positive'],['MaximumHeight','最大高度（像素）','positive'],['ImproveContrast','增強對比',yn],['Dither','色彩抖動',yn],['Compress','壓縮圖片',yn],['LossyLevel','有損壓縮範圍','none|lossy|200|100|50|20|10|all'],['LossyQuality','有損品質（1–100）','quality'],...[1,2,4,8,16].map(n=>['BitDepth'+n,n+' 位元色深',ie])]],
+['表格與版面','',[
+...[['IgnoreTables','忽略表格'],['AddSeparators','加入表格分隔線'],['UseMinimumDepth','設定最小表格深度'],['UnfoldFullPageTables','展開整頁表格'],['UseMaximumBottomReach','限制表格底部延伸'],['IgnorePixelWidths','忽略像素寬度']].map(([p,l])=>['TableOptions/'+p,l,yn]),['TableOptions/MinimumDepth','最小表格深度','positive'],['TableOptions/MaximumBottomReach','最大底部延伸','positive'],['ColorOptions/BackgroundColors','背景色','keep|ignore|IgnoreBody'],['ColorOptions/TextColors','文字色彩','keep|ignore'],['MarginOptions/LeftRightMargins','左右邊界','keep|ignore|IgnoreBody|IgnoreBDP'],['MarginOptions/LeftRightPadding','左右內距','keep|ignore|IgnoreBody|IgnoreBDP']]],
+['文字與導覽','',[
+['TextOptions/PreUseMonospaceFont','預格式文字使用等寬字',yn],['TextOptions/PreSingleLineBreaks','預格式文字單一換行','KeepAll|RemoveAll|KeepIfSpaceTab'],['TextOptions/ProcessLineBreaks','處理純文字換行',yn],['TextOptions/ConvertSingleLineBreaks','移除純文字單一換行',yn],['TextOptions/Preformatted','將純文字視為預格式文字',yn],['TextOptions/UseMonospaceFont','純文字使用等寬字',yn],['TextOptions/MonospaceFontSize','等寬字大小','positive'],['TextOptions/TabStopWidth','定位寬度','positive'],['DocumentOptions/PageBounds','跨頁行為','rigid|hard|soft'],['DocumentOptions/UseDefaultCategory','指定閱讀器分類',yn],['DocumentOptions/DefaultCategory','閱讀器分類'],['DocumentOptions/HomePageNumber','首頁頁碼','positive'],['DocumentOptions/OpenHomePageOnDateChange','文件更新後開啟首頁',yn]]],
+['書籤','Bookmarks/Document',[
+['NamedAnchorType','具名錨點類型','WordWebPage|all|filtered'],['UseFile','從 HTML 書籤檔建立',yn],['Path','書籤 HTML 檔案'],['UseNamedAnchors','將具名錨點加入書籤',yn],['UseIncludeFilter','啟用收錄字首',yn],['IncludePrefix','收錄字首'],['UseExcludeFilter','啟用排除字首',yn],['ExcludePrefix','排除字首']]],
+['作者與出版資訊','Messages',[
+['Title','完整書名'],['Version','版本'],['AuthorName','作者'],['AuthorContact','作者聯絡方式'],['AuthorNotes','作者說明'],['PublisherName','出版者'],['PublisherContact','出版者聯絡方式'],['PublisherNotes','出版說明'],['Copyright','著作權聲明'],['Notes','文件說明']]],
+['文件權限','SecurityOptions',[
+['Convert','再轉檔',ad],['CopyBeam','複製或傳送檔案',ad],['CopyAndPaste','複製與貼上',ad],['Modify','修改',ad],['Print','列印',ad],['Expiration/Expires','啟用到期日',yn],['Expiration/Date','到期日（YYYYMMDD）','date8'],['Password/Require','閱讀時要求密碼',yn],['Password/Password','文件密碼（會寫入 IXL 明文）','password'],['RegistrationCode/Require','閱讀時要求註冊碼',yn],['RegistrationCode/DocumentID','註冊用文件識別碼']]],
+['書間連結與對照檔','Targets',[
+['Export','匯出可連結的錨點','none|all|ByFile'],['Lookup','書間連結查找方式','ByName|ByID|ByOffset'],['ByFile','匯出錨點清單檔案'],['GenerateMapFile','產生對照檔',yn],['MapFile','對照檔路徑']]],
+];
+const scheduleFields=[['Frequency','頻率','once|hourly|daily|weekly|monthly'],['Time','執行時間（HHMM，每小時排程填 0–59）','timecode'],['Weekday','每週執行日','Mon|Tue|Wed|Thu|Fri|Sat|Sun'],['Day','每月執行日（1–31）','day'],['Type','執行規則','every|only'],['Every','間隔數','positive'],['Only','指定時段（例如 Mon,Wed,Fri）'],['StartDate','開始日期時間（單次排程必填，YYYY/MM/DD HH:MM:SS）'],['EndDate','結束日期時間（同上）'],['Disable','停用此排程',yn]];
+const parser=new DOMParser(), serial=new XMLSerializer();
+let tree,selected,filename='轉檔專案.ixl',dirty=false,rawDirty=false;
+function sons(node,tag){return node?Array.from(node.children).filter(n=>n.tagName===tag):[];}
+function path(node,key,create=false){
+ for(const tag of key.split('/').filter(Boolean)){
+  let next=sons(node,tag)[0];
+  if(!next&&create){next=tree.createElement(tag);node.append(next);}
+  if(!next)return null;
+  node=next;
+ }
+ return node;
+}
+function setText(node,key,value){path(node,key,true).textContent=value;}
+function books(){return sons(tree.documentElement,'iSiloXDocument');}
+function notify(s){el('status').textContent=s;}
+function readXml(s){
+ if(/<!DOCTYPE\b/i.test(s))throw Error('IXL 不支援 DTD。');
+ const xml=parser.parseFromString(s,'application/xml');
+ if(xml.documentElement.tagName!=='iSiloXDocumentList'||xml.getElementsByTagName('parsererror').length)throw Error('請使用有效的 IXL 專案 XML。');
+ if(!sons(xml.documentElement,'iSiloXDocument').length)throw Error('專案至少需要一本書。');
+ return xml;
+}
+function refreshBooks(){
+ const all=books();
+ el('book').replaceChildren(...all.map((b,i)=>new Option((i+1)+' · '+(path(b,'Destination/Title')?.textContent||'未命名書籍'),String(i))));
+ el('book').value=String(all.indexOf(selected));el('up').disabled=selected===all[0];el('down').disabled=selected===all.at(-1);el('del').disabled=all.length<2;
+}
+function registerGroup(label){
+ const parts=label.match(/(?:\/\/|[^/])+/g)||[];
+ let node=path(tree.documentElement,'Registry/Groups',true);
+ // Registry precedes the document list in the official IXL layout.
+ const registry=node.parentNode;
+ if(books()[0].compareDocumentPosition(registry)&Node.DOCUMENT_POSITION_FOLLOWING)tree.documentElement.insertBefore(registry,books()[0]);
+ parts.forEach((part,i)=>{
+  const branch=i+1<parts.length;
+  let group=Array.from(node.children).find(g=>['Group','Groups'].includes(g.tagName)&&g.getAttribute('name')===part);
+  if(group&&branch&&group.tagName==='Group'){
+   const replacement=tree.createElement('Groups');
+   for(const a of group.attributes)replacement.setAttribute(a.name,a.value);
+   while(group.firstChild)replacement.append(group.firstChild);
+   group.replaceWith(replacement);group=replacement;
+  }
+  if(!group){group=tree.createElement(branch?'Groups':'Group');group.setAttribute('name',part);group.setAttribute('checked','yes');node.append(group);}
+  node=group;
+ });
+}
+function values(node,key){
+ const parts=key.split('/'),tag=parts.pop();return sons(path(node,parts.join('/')),tag);
+}
+const numeric={int:[0,65535],positive:[1,65535],quality:[1,100],day:[1,31]};
+function field(container,node,prefix,[key,label,type='text']){
+ const full=[prefix,key].filter(Boolean).join('/');
+ const holder=document.createElement('label'),caption=document.createElement('span');
+ caption.textContent=label;holder.append(caption);container.append(holder);
+ const list=type==='lines',enumType=type.includes('|'),attribute=enumType||Object.hasOwn(numeric,type)||['timecode','date8'].includes(type);
+ let input=document.createElement(enumType?'select':list?'textarea':'input');
+ input.dataset.path=full;
+ const original=values(node,full);
+ const val=list?original.map(x=>x.textContent).join('\n'):original[0]?(attribute?original[0].getAttribute('value'):original[0].textContent)||'':'';
+ if(enumType){
+  input.add(new Option('依原廠預設',''));
+  for(const choice of type.split('|'))input.add(new Option(names[choice]||choice,choice));
+  if(val&&!Array.from(input.options).some(o=>o.value===val))input.add(new Option(val,val));
+ }else if(!list){
+  input.type=type==='password'?'password':Object.hasOwn(numeric,type)?'number':'text';
+  if(type==='password')input.autocomplete='new-password';
+  if(Object.hasOwn(numeric,type)){[input.min,input.max]=numeric[type];input.step='1';}
+  if(type==='date8')input.pattern='[0-9]{8}';
+ }
+ if(list){input.rows=3;holder.classList.add('ix-wide');}
+ input.value=val;holder.append(input);
+ input.oninput=()=>{
+  const s=input.value;
+  if(!input.checkValidity())return;
+  if(list){
+   const items=s.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+   const prev=values(node,full),parts=full.split('/'),tag=parts.pop();
+   items.forEach((item,i)=>{
+    let target=prev[i];if(!target){target=tree.createElement(tag);path(node,parts.join('/'),true).append(target);}
+    target.textContent=item;
+   });
+   prev.slice(items.length).forEach(x=>x.remove());
+  }else if(!s)path(node,full)?.remove();
+  else if(attribute)path(node,full,true).setAttribute('value',s);
+  else setText(node,full,s);
+  dirty=true;notify('目前的變更尚未下載。');
+  if(full==='Destination/Title')refreshBooks();
+  if(el('raw-box').open&&!rawDirty)el('raw').value=xmlString();
+ };
+}
+function section(title,open=false){
+ const d=document.createElement('details'),s=document.createElement('summary'),grid=document.createElement('div');
+ d.open=open;s.textContent=title;grid.className='ix-grid';d.append(s,grid);el('fields').append(d);return {d,grid};
+}
+function makeButton(label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=fn;return b;}
+function render(){
+ el('fields').replaceChildren();refreshBooks();
+ defs.forEach(([title,prefix,fields],i)=>{const {grid}=section(title,i===0);fields.forEach(f=>field(grid,selected,prefix,f));});
+ const {d,grid}=section('轉檔排程');
+ field(grid,selected,'Scheduling',['Disable','停用本書所有排程',yn]);
+ const note=document.createElement('p');note.className='ix-note';note.textContent='排程隨 IXL 保存，由原廠排程功能執行。';d.append(note);
+ const wrap=document.createElement('div');d.append(wrap);
+ function draw(){
+  wrap.replaceChildren();values(selected,'Scheduling/Schedules/Schedule').forEach((n,i)=>{
+   const item=document.createElement('details'),title=document.createElement('summary'),g=document.createElement('div');
+   title.textContent='排程 '+(i+1);g.className='ix-grid';item.append(title,g);scheduleFields.forEach(f=>field(g,n,'',f));item.append(makeButton('移除此排程',()=>{if(!guard())return;n.remove();dirty=true;draw();}));wrap.append(item);
+  });
+ }
+ draw();d.append(makeButton('新增排程',()=>{if(!guard())return;const n=tree.createElement('Schedule');path(selected,'Scheduling/Schedules',true).append(n);path(n,'Frequency',true).setAttribute('value','daily');dirty=true;draw();wrap.lastChild.open=true;}));
+ if(el('raw-box').open&&!rawDirty)el('raw').value=xmlString();
+}
+function xmlString(){return '<?xml version="1.0" encoding="UTF-8"?>\n'+serial.serializeToString(tree).replace(/^<\?xml[^?]*\?>\s*/,'');}
+function guard(){
+ if(rawDirty){notify('請先套用原始碼，或按「重新載入目前設定」捨棄原始碼變更。');return false;}
+ const bad=el('fields').querySelector(':invalid');if(bad){for(let parent=bad.parentElement;parent&&parent!==root;parent=parent.parentElement){if(parent.tagName==='DETAILS')parent.open=true;}bad.reportValidity();return false;}return true;
+}
+function adopt(xml,bookIndex=0){tree=xml;selected=books()[Math.min(bookIndex,books().length-1)];rawDirty=false;el('fields').inert=false;render();}
+function fresh(){
+ const b=tree.createElement('iSiloXDocument');setText(b,'Destination/Title','新書');setText(b,'DocumentOptions/CharSet','UTF-8');return b;
+}
+function syncGroups(){
+ for(const b of books())for(const g of values(b,'Entry/Groups/Group'))if(g.textContent.trim())registerGroup(g.textContent.trim());
+}
+function validate(){
+ const destinations=new Set();
+ const xdate=/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/;
+ for(const [i,b] of books().entries()){
+  const title=path(b,'Destination/Title')?.textContent.trim()||'第 '+(i+1)+' 本';
+  if(!values(b,'Source/Sources/Path').some(e=>e.textContent.trim()))throw Error(title+'缺少來源。');
+  if(!['Files','HotSync','ActiveSync'].some(t=>values(b,'Destination/'+t+'/Path').some(e=>e.textContent.trim())))throw Error(title+'缺少輸出位置。');
+  for(const schedule of values(b,'Scheduling/Schedules/Schedule')){
+    const frequency=path(schedule,'Frequency')?.getAttribute('value');
+    const start=path(schedule,'StartDate')?.textContent;
+    const end=path(schedule,'EndDate')?.textContent;
+    if((frequency==='once'&&!start)||(start&&!xdate.test(start))||(end&&!xdate.test(end)))throw Error(title+'的排程日期請使用 YYYY/MM/DD HH:MM:SS。');
+    const time=path(schedule,'Time')?.getAttribute('value');
+    if(time&&(frequency==='hourly'? !/^\d{1,2}$/.test(time)||Number(time)>59 : !/^(?:[01]\d|2[0-3])[0-5]\d$/.test(time)))throw Error(title+'的排程時間格式錯誤。');
+  }
+  for(const dest of values(b,'Destination/Files/Path')){
+    const key=dest.textContent.trim().replaceAll('/','\\').toLowerCase();
+    if(destinations.has(key))throw Error('輸出路徑重複，請分別指定各本書的 PDB 路徑。');
+    destinations.add(key);
+  }
+ }
+}
+function download(){
+ if(!guard())return;
+ try{validate();syncGroups();const url=URL.createObjectURL(new Blob([xmlString()],{type:'application/xml;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);dirty=false;notify('已匯出 '+books().length+' 本書的轉檔設定。');}
+ catch(e){notify(e.message);}
+}
+el('file').onchange=async ev=>{
+ const f=ev.target.files[0];if(!f)return;
+ try{
+  if((dirty||rawDirty)&&!confirm('以匯入檔案取代目前尚未下載的編輯內容？'))return;
+  const bytes=new Uint8Array(await f.arrayBuffer());
+  let encoding=bytes[0]===255&&bytes[1]===254?'utf-16le':bytes[0]===254&&bytes[1]===255?'utf-16be':bytes[0]===60&&bytes[1]===0?'utf-16le':bytes[0]===0&&bytes[1]===60?'utf-16be':null;
+  if(!encoding){const lead=new TextDecoder('windows-1252').decode(bytes.slice(0,240));encoding=lead.match(/^\s*(?:ï»¿)?<\?xml[^?]*\bencoding\s*=\s*["']([^"']+)["']/i)?.[1]||'utf-8';}
+  const doc=readXml(new TextDecoder(encoding,{fatal:true}).decode(bytes));adopt(doc);dirty=false;filename=f.name.replace(/(?:\.ixl|\.xml)?$/i,'.ixl');notify('已載入 '+books().length+' 本書。');
+ }catch(e){notify('匯入失敗。'+e.message);}finally{ev.target.value='';}
+};
+el('save').onclick=download;
+el('book').onchange=()=>{if(!guard()){refreshBooks();return;}selected=books()[Number(el('book').value)];render();};
+function changeBook(action){
+ if(!guard())return;
+ const all=books(),i=all.indexOf(selected);
+ if(action==='add'||action==='copy'){
+  const b=action==='copy'?selected.cloneNode(true):fresh();
+  if(action==='copy'){setText(b,'Destination/Title',(path(b,'Destination/Title')?.textContent||'書籍')+' 副本');values(b,'Destination/Files/Path').forEach(x=>{x.textContent=x.textContent.replace(/(\.pdb)?$/i,'-copy.pdb');});}
+  selected.after(b);selected=b;
+ }else if(action==='del'&&all.length>1){if(!confirm('移除此書的轉檔設定？'))return;selected.remove();selected=all[i?i-1:1];}
+ else if(action==='up'&&i>0)all[i-1].before(selected);
+ else if(action==='down'&&i<all.length-1)all[i+1].after(selected);
+ dirty=true;render();notify('目前共 '+books().length+' 本。');
+}
+for(const action of ['add','copy','up','down','del'])el(action).onclick=()=>changeBook(action);
+el('raw-box').ontoggle=()=>{if(el('raw-box').open&&!rawDirty)el('raw').value=xmlString();};
+el('raw').oninput=()=>{rawDirty=true;el('fields').inert=true;notify('原始碼已修改，請按「套用 XML」。');};
+el('reset').onclick=()=>{el('raw').value=xmlString();rawDirty=false;el('fields').inert=false;notify('已重新載入設定。');};
+el('apply').onclick=()=>{try{if(!rawDirty){el('raw').value=xmlString();return;}adopt(readXml(el('raw').value),books().indexOf(selected));el('fields').inert=false;dirty=true;notify('已套用 XML。');}catch(e){notify(e.message);}};
+adopt(readXml('<iSiloXDocumentList><iSiloXDocument><Destination><Title>新書</Title></Destination><DocumentOptions><CharSet>UTF-8</CharSet></DocumentOptions></iSiloXDocument></iSiloXDocumentList>'));
+})();
+</script>
+
+</section>
+<section id="editor" aria-label="詩歌與書報" hidden>
+<div id="songbookDesk">
+<style>
+#songbookDesk .bookLayout{display:grid;grid-template-columns:minmax(190px,1fr) minmax(0,2fr);gap:1rem}
+#songbookDesk .bookLayout>*{min-width:0}
+#songbookDesk .bookActions{display:flex;flex-wrap:wrap;gap:.5rem;margin:.8rem 0}
+#songbookDesk .bookActions>*{margin:0}
+#songbookDesk .bookIndex{width:100%;min-height:9rem}
+#songbookDesk .bookPreview{padding:1rem;border-left:3px solid #be9e5a;background:#f7f7f0;overflow-wrap:anywhere}
+#songbookDesk .bookVerse{white-space:pre-wrap}
+#songbookDesk .bookPair{display:inline-flex;flex-direction:column;vertical-align:bottom}
+#songbookDesk .bookChord{font:bold .8em/1.2 monospace;color:#946627}
+#songbookDesk .bookFoot{white-space:pre-wrap;color:#496258}
+#songbookDesk .bookLyrics{min-height:13rem}
+@media(max-width:720px){#songbookDesk .bookLayout{grid-template-columns:1fr}#songbookDesk .bookIndex{min-height:5rem}}
+</style>
+<div class="bookLayout">
+<div class="card"><h2>書籍與章節</h2>
+<label>書名<input data-bk="title" maxlength="240" placeholder="例如：詩歌選集"></label>
+<label>編者<input data-bk="author" maxlength="240" placeholder="選填"></label>
+<label>章節目錄<select data-bk="list" class="bookIndex" size="7"></select></label>
+<div class="bookActions"><button type="button" data-bk="add">新增章節</button><button type="button" data-bk="up">上移</button><button type="button" data-bk="down">下移</button><button type="button" data-bk="remove">移除</button></div>
+<label>匯入 ChordPro（加入章節）<input type="file" data-bk="import" multiple accept=".cho,.chopro,.chordpro,.pro,.txt"></label>
+<label>還原編輯檔<input type="file" data-bk="restore" accept=".json"></label>
+</div>
+<div class="card"><h2>編輯章節</h2>
+<label>篇名或歌名<input data-bk="name" maxlength="300"></label>
+<label>正文或歌詞<textarea data-bk="body" class="bookLyrics" placeholder="可直接輸入文章，或把和弦寫在對應的歌詞前，如 [G]晨光照耀。"></textarea></label>
+<div class="bookActions"><button type="button" data-bk="lower">本章和弦降半音</button><button type="button" data-bk="raise">本章和弦升半音</button></div>
+<label>經文出處與附註<textarea data-bk="note" rows="3" placeholder="選填，每行一筆"></textarea></label>
+<details><summary>本章排版預覽</summary><div class="bookPreview" data-bk="preview"></div></details>
+<div class="bookActions"><button type="button" class="primary" data-bk="epub">下載 EPUB</button><button type="button" data-bk="html">下載單頁 HTML</button><button type="button" data-bk="excel">下載 Excel</button><button type="button" data-bk="cho">下載 ChordPro</button><button type="button" data-bk="palm">送至 PalmDOC 製作區</button><button type="button" data-bk="backup">儲存編輯檔</button></div>
+<small data-bk="status" role="status"></small></div>
+</div></div>
+<script>
+(()=>{
+const root=document.getElementById('songbookDesk'), ui=Object.fromEntries(Array.from(root.querySelectorAll('[data-bk]'),e=>[e.dataset.bk,e]));
+const blank=()=>({name:'',body:'',note:''}), key='pdb-songbook-draft-v1', enc=new TextEncoder();
+let book={title:'',author:'',chapters:[blank()]}, active=0;
+const heading=(c,i)=>c.name.trim()||'第 '+(i+1)+' 章';
+function safeXml(s){return Array.from(String(s),c=>{const n=c.codePointAt(0);return n===9||n===10||n===13||(n>=32&&n<=0xd7ff)||(n>=0xe000&&n<=0xfffd)||n>=0x10000?c:'�'}).join('').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));}
+function valid(b){return b&&typeof b.title==='string'&&typeof b.author==='string'&&Array.isArray(b.chapters)&&b.chapters.length>0&&b.chapters.length<=2000&&b.chapters.every(c=>c&&['name','body','note'].every(k=>typeof c[k]==='string'))}
+function message(t){ui.status.textContent=t}
+function store(){try{localStorage.setItem(key,JSON.stringify(book))}catch{message('瀏覽器未能保存草稿，請下載編輯檔備份。')}}
+function marked(line){
+ const matches=[...line.matchAll(/\[([^\]\r\n]{1,32})\]/g)];if(!matches.length)return safeXml(line);
+ const pieces=[safeXml(line.slice(0,matches[0].index))];matches.forEach((m,i)=>{const text=line.slice(m.index+m[0].length,matches[i+1]?.index??line.length);pieces.push('<span class="bookPair"><strong class="bookChord">'+safeXml(m[1])+'</strong><span>'+safeXml(text||'\u00a0')+'</span></span>')});return pieces.join('');
+}
+function chapter(c,i){return '<h2>'+safeXml(heading(c,i))+'</h2><div class="bookVerse">'+c.body.replace(/\r\n?/g,'\n').split('\n').map(marked).join('<br/>')+'</div>'+(c.note.trim()?'<p class="bookFoot">'+safeXml(c.note)+'</p>':'')}
+function updateIndex(){ui.list.replaceChildren(...book.chapters.map((c,i)=>new Option((i+1)+'. '+heading(c,i),String(i))));ui.list.selectedIndex=active;ui.up.disabled=active===0;ui.down.disabled=active===book.chapters.length-1;}
+function render(){ui.title.value=book.title;ui.author.value=book.author;const c=book.chapters[active];ui.name.value=c.name;ui.body.value=c.body;ui.note.value=c.note;updateIndex();ui.preview.innerHTML=chapter(c,active)}
+try{const draft=JSON.parse(localStorage.getItem(key));if(valid(draft))book=draft}catch{}
+for(const k of ['title','author','name','body','note'])ui[k].oninput=()=>{if(k==='title'||k==='author')book[k]=ui[k].value;else book.chapters[active][k]=ui[k].value;if(k==='name')updateIndex();ui.preview.innerHTML=chapter(book.chapters[active],active);message('');store()};
+ui.list.onchange=()=>{active=ui.list.selectedIndex;render()};
+ui.add.onclick=()=>{if(book.chapters.length>=2000)return message('每本最多 2,000 章。');book.chapters.splice(++active,0,blank());render();store();ui.name.focus()};
+for(const [k,d] of [['up',-1],['down',1]])ui[k].onclick=()=>{const next=active+d;if(next<0||next>=book.chapters.length)return;[book.chapters[active],book.chapters[next]]=[book.chapters[next],book.chapters[active]];active=next;render();store()};
+ui.remove.onclick=()=>{if(!confirm('移除「'+heading(book.chapters[active],active)+'」？'))return;book.chapters.splice(active,1);if(!book.chapters.length)book.chapters.push(blank());active=Math.min(active,book.chapters.length-1);render();store()};
+const bookCss='body{max-width:48em;margin:1em auto;padding:1em;font-family:serif;line-height:1.75;color:#213f38}h1,h2{line-height:1.4}.bookVerse,.bookFoot{white-space:pre-wrap;overflow-wrap:anywhere}.bookPair{display:inline-flex;flex-direction:column;vertical-align:bottom}.bookChord{font:bold .8em/1.25 monospace;color:#775020}.bookFoot{border-top:1px solid #ccc;padding-top:.7em}section{margin:2em 0;break-before:page}a{color:#17584c}';
+function htmlBook(b){return '<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+safeXml(b.title)+'</title><style>'+bookCss+'</style><main><h1>'+safeXml(b.title)+'</h1><p>'+safeXml(b.author)+'</p><nav id="toc"><h2>目錄</h2><ol>'+b.chapters.map((c,i)=>'<li><a href="#c'+i+'">'+safeXml(heading(c,i))+'</a></li>').join('')+'</ol></nav>'+b.chapters.map((c,i)=>'<section id="c'+i+'">'+chapter(c,i)+'<p><a href="#toc">回目錄</a></p></section>').join('')+'</main></html>'}
+const crcTable=Uint32Array.from({length:256},(_,i)=>{for(let j=0;j<8;j++)i=i&1?(i>>>1)^0xedb88320:i>>>1;return i>>>0});
+function zip(entries,mime='application/epub+zip'){
+ const files=[],directory=[];let offset=0,centralSize=0;
+ function header(n){const data=new Uint8Array(n),view=new DataView(data.buffer);return {data,u16:(p,v)=>view.setUint16(p,v,true),u32:(p,v)=>view.setUint32(p,v,true)}}
+ for(const [name,content] of entries){
+  const path=enc.encode(name),data=enc.encode(content);let crc=0xffffffff;for(const b of data)crc=(crc>>>8)^crcTable[(crc^b)&255];crc=(crc^0xffffffff)>>>0;
+  const l=header(30);l.u32(0,0x04034b50);l.u16(4,20);l.u16(12,33);l.u32(14,crc);l.u32(18,data.length);l.u32(22,data.length);l.u16(26,path.length);files.push(l.data,path,data);
+  const d=header(46);d.u32(0,0x02014b50);d.u16(4,20);d.u16(6,20);d.u16(14,33);d.u32(16,crc);d.u32(20,data.length);d.u32(24,data.length);d.u16(28,path.length);d.u32(42,offset);directory.push(d.data,path);centralSize+=46+path.length;offset+=30+path.length+data.length;
+  if(offset+centralSize>=0xffffffff)throw Error('書籍超過 ZIP 容量。');
+ }
+ const end=header(22);end.u32(0,0x06054b50);end.u16(8,entries.length);end.u16(10,entries.length);end.u32(12,centralSize);end.u32(16,offset);return new Blob([...files,...directory,end.data],{type:mime});
+}
+function epubBook(b){
+ const xml='<?xml version="1.0" encoding="UTF-8"?>',uuid='urn:uuid:'+crypto.randomUUID(),title=safeXml(b.title);
+ const page=(t,body)=>xml+'<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="zh-Hant" lang="zh-Hant"><head><title>'+t+'</title><link href="book.css" rel="stylesheet" type="text/css"/></head><body>'+body+'</body></html>';
+ const names=b.chapters.map((c,i)=>safeXml(heading(c,i))), links=names.map((n,i)=>'<li><a href="c'+i+'.xhtml">'+n+'</a></li>').join('');
+ const opf=xml+'<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">'+uuid+'</dc:identifier><dc:title>'+title+'</dc:title><dc:language>zh-Hant</dc:language>'+(b.author?'<dc:creator>'+safeXml(b.author)+'</dc:creator>':'')+'<meta property="dcterms:modified">'+new Date().toISOString().split('.')[0]+'Z</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="css" href="book.css" media-type="text/css"/><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'+names.map((_,i)=>'<item id="c'+i+'" href="c'+i+'.xhtml" media-type="application/xhtml+xml"/>').join('')+'</manifest><spine toc="ncx"><itemref idref="nav"/>'+names.map((_,i)=>'<itemref idref="c'+i+'"/>').join('')+'</spine></package>';
+ const ncx=xml+'<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="'+uuid+'"/></head><docTitle><text>'+title+'</text></docTitle><navMap>'+names.map((n,i)=>'<navPoint id="p'+i+'" playOrder="'+(i+1)+'"><navLabel><text>'+n+'</text></navLabel><content src="c'+i+'.xhtml"/></navPoint>').join('')+'</navMap></ncx>';
+ return zip([['mimetype','application/epub+zip'],['META-INF/container.xml',xml+'<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="EPUB/book.opf" media-type="application/oebps-package+xml"/></rootfiles></container>'],['EPUB/book.opf',opf],['EPUB/book.css',bookCss],['EPUB/toc.ncx',ncx],['EPUB/nav.xhtml',page(title,'<h1>'+title+'</h1><nav epub:type="toc"><h2>目錄</h2><ol>'+links+'</ol></nav>')],...names.map((n,i)=>['EPUB/c'+i+'.xhtml',page(n,chapter(b.chapters[i],i))])]);
+}
+
+const chordPattern=/^([A-G])([#b♯♭]?)(?:(m(?:aj|in)?|M|maj|min|dim|aug|sus|add|no|omit|alt|dom|Δ|ø|°|\+|-|[#b♯♭]|[0-9]|[(),])*)(?:\/([A-G])([#b♯♭]?))?$/;
+function shifted(name,step){
+ const m=chordPattern.exec(name);
+ if(!m)return name;
+ const sharp=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'],flat=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+ const pitches={C:0,D:2,E:4,F:5,G:7,A:9,B:11};const spell=step>0?sharp:flat;
+ function note(letter,sign){const diff=sign==='b'||sign==='♭'?-1:sign==='#'||sign==='♯'?1:0;return spell[(pitches[letter]+diff+step+12)%12]}
+ const rootLength=m[1].length+m[2].length,slash=name.lastIndexOf('/');
+ const suffix=name.slice(rootLength,slash===-1?undefined:slash);
+ return note(m[1],m[2])+suffix+(m[4]?'/'+note(m[4],m[5]):'');
+}
+for(const [id,step] of [['lower',-1],['raise',1]])ui[id].onclick=()=>{
+ const c=book.chapters[active];let count=0;
+ const next=c.body.replace(/\[([^\]\r\n]{1,32})\]/g,(token,name)=>{const chord=shifted(name,step);if(chord===name)return token;count++;return '['+chord+']'});
+ if(!count)return message('本章沒有可移調的方括號和弦。');
+ c.body=next;render();store();message('已將本章 '+count+' 個和弦'+(step>0?'升':'降')+'半音。');
+};
+function excelBook(b){
+ const xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+ const main='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+ const rel='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+ const pkg='http://schemas.openxmlformats.org/package/2006/relationships';
+ const rows=[];let seq=0;
+ function row(values){
+   if(seq>=1048576)throw Error('行數超過 Excel 工作表上限。');
+   seq++;const cells=values.map((v,i)=>{const addr=String.fromCharCode(65+i)+seq;
+    if(typeof v==='number')return '<c r="'+addr+'"><v>'+v+'</v></c>';
+    if(v.length>32767)throw Error('第 '+seq+' 列有欄位超過 Excel 的字數上限，請先拆分長段落。');
+    const value=safeXml(v.replace(/_x([0-9a-fA-F]{4})_/g,'_x005F_x$1_'));
+    return '<c r="'+addr+'" t="inlineStr"><is><t xml:space="preserve">'+value+'</t></is></c>';
+   }).join('');rows.push('<row r="'+seq+'">'+cells+'</row>');
+ }
+ row(['書名','編者','章序','篇名或歌名','行序','內文或歌詞','和弦','含和弦原文','經文出處與附註']);
+ b.chapters.forEach((c,i)=>c.body.split(/\r\n?|\n/).forEach((line,j)=>{
+   const chords=[];const lyrics=line.replace(/\[([^\]\r\n]{1,32})\]/g,(token,name)=>{if(!chordPattern.test(name))return token;chords.push(name);return ''});
+   row([b.title,b.author,i+1,heading(c,i),j+1,lyrics,chords.join(' '),line,j===0?c.note:'']);
+ }));
+ const sheet=xml+'<worksheet xmlns="'+main+'"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="16"/><cols>'+[22,15,8,24,8,48,18,54,38].map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join('')+'</cols><sheetData>'+rows.join('')+'</sheetData><autoFilter ref="A1:I'+seq+'"/></worksheet>';
+ const relationship=(type,target)=>xml+'<Relationships xmlns="'+pkg+'"><Relationship Id="rId1" Type="'+rel+'/'+type+'" Target="'+target+'"/></Relationships>';
+ return zip([
+ ['[Content_Types].xml',xml+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
+ ['_rels/.rels',relationship('officeDocument','xl/workbook.xml')],
+ ['xl/workbook.xml',xml+'<workbook xmlns="'+main+'" xmlns:r="'+rel+'"><sheets><sheet name="篇章與歌詞" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+ ['xl/_rels/workbook.xml.rels',relationship('worksheet','worksheets/sheet1.xml')],
+ ['xl/worksheets/sheet1.xml',sheet]],'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+function readCho(raw,fallback){
+ const songs=[];let c=blank(),hasTitle=false;
+ function push(){c.body=c.body.replace(/\n$/,'');if(c.body.trim()||hasTitle||c.note.trim()){if(!c.name)c.name=fallback;songs.push(c)}c=blank();hasTitle=false}
+ for(const line of raw.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n')){
+  const t=line.match(/^\s*\{(?:title|t)\s*:\s*(.*?)\}\s*$/i);
+  if(t){if(hasTitle||c.body.trim())push();c.name=t[1];hasTitle=true;continue}
+  if(/^\s*\{new_song\}\s*$/i.test(line)){push();continue}
+  const note=line.match(/^\s*\{comment:\s*經文附註：(.*)\}\s*$/);if(note){c.note+=(c.note?'\n':'')+note[1];continue}
+  c.body+=line+'\n';
+ }
+ push();return songs;
+}
+function writeCho(b){return b.chapters.map((c,i)=>'{title: '+heading(c,i).replace(/[\r\n]/g,' ')+'}\n'+(c.note?c.note.split(/\r?\n/).map(n=>'{comment: 經文附註：'+n+'}').join('\n')+'\n':'')+c.body).join('\n{new_song}\n')}
+ui.import.onchange=async()=>{try{const added=[];for(const f of ui.import.files){if(f.size>10*1024*1024)throw Error('單檔上限為 10 MB。');added.push(...readCho(new TextDecoder('utf-8',{fatal:true}).decode(await f.arrayBuffer()),f.name.replace(/\.[^.]+$/,'')))}if(!added.length)throw Error('未讀到歌詞。');const pristine=book.chapters.length===1&&Object.values(book.chapters[0]).every(s=>!s);if(added.length+(pristine?0:book.chapters.length)>2000)throw Error('每本最多 2,000 章。');if(pristine)book.chapters=[];active=book.chapters.length;book.chapters.push(...added);render();message('已加入 '+added.length+' 章。');store()}catch(e){message('匯入失敗。'+e.message)}finally{ui.import.value=''}};
+ui.restore.onchange=async()=>{try{const f=ui.restore.files[0];if(!f)return;if(f.size>40*1024*1024)throw Error('編輯檔上限為 40 MB。');const b=JSON.parse(await f.text());if(!valid(b))throw Error('編輯檔格式不符。');if(!confirm('以選取的編輯檔取代目前整本草稿？'))return;book=b;active=0;render();message('已還原編輯檔。');store()}catch(e){message('還原失敗。'+e.message)}finally{ui.restore.value=''}};
+for(const [id,ext,type,make] of [['excel','xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',excelBook],['html','html','text/html',htmlBook],['epub','epub','application/epub+zip',epubBook],['cho','cho','text/plain',writeCho],['backup','json','application/json',b=>JSON.stringify(b,null,2)]]){
+ ui[id].onclick=()=>{try{if(id!=='backup'&&!book.title.trim()){ui.title.focus();return message('請先填寫書名。')}const output=make(book),blob=output instanceof Blob?output:new Blob([output],{type:type+';charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(book.title.trim()||'書籍草稿').replace(/[\\/:*?"<>|]/g,'_')+'.'+ext;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);message('已產生 '+ext.toUpperCase()+' 檔。')}catch(e){message('匯出失敗。'+e.message)}};
+}
+ui.palm.onclick=()=>openPalmDraft(book.title,book.chapters.map((c,i)=>[heading(c,i),c.body,c.note].filter(Boolean).join('\n')).join('\n\n'));
+render();
+})();
+</script>
+
+</section>
+<section id="capture" aria-label="網頁合訂" hidden>
+<section class="capture-workspace" aria-labelledby="cap-heading">
+<style>
+.capture-workspace{color:var(--ink,#173e37)}.capture-workspace .cap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(245px,100%),1fr));gap:1rem}.capture-workspace fieldset{border:1px solid var(--edge,#d7dfd4);border-radius:10px;padding:1rem;margin:.8rem 0;min-width:0}.capture-workspace legend{font-weight:700}.capture-workspace input:not([type=checkbox]),.capture-workspace select{display:block;width:100%;max-width:100%;margin:.3rem 0 .8rem;padding:.48rem;box-sizing:border-box}.capture-workspace .cap-actions{display:flex;gap:.65rem;align-items:center;flex-wrap:wrap}.capture-workspace .cap-log{white-space:pre-wrap;overflow-wrap:anywhere;max-height:12rem;overflow:auto;font-size:.9rem}.capture-workspace .cap-check{display:flex;gap:.5rem;align-items:center}.capture-workspace .cap-check input{width:auto}
+</style>
+<h2 id="cap-heading">網頁離線合訂</h2>
+<p>收錄多個網頁，保留目錄、段落、表格和章節連結，下載為一份可離線閱讀的 HTML。</p>
+<label for="cap-mode">來源</label><select id="cap-mode"><option value="local">本機 HTML 檔案或資料夾</option><option value="web">從一個網址擷取同站網頁</option></select>
+<fieldset id="cap-local"><legend>選擇來源檔案</legend><div class="cap-grid"><label>HTML 與圖片（可複選）<input id="cap-files" type="file" multiple accept=".htm,.html,.xhtml,.png,.jpg,.jpeg,.gif,.webp"></label><label>載入整個資料夾<input id="cap-dir" type="file" webkitdirectory multiple></label></div><small>有子目錄或相對路徑圖片時，請選擇資料夾。每次選取會取代上次選取的檔案。</small><p id="cap-summary" aria-live="polite"></p></fieldset>
+<fieldset id="cap-web" hidden><legend>網站來源</legend><label>起始網址<input id="cap-url" type="url" placeholder="https://example.org/books/index.html"></label><label>收錄路徑包含（選填）<input id="cap-filter" placeholder="/books/"></label><small>起始頁一定收錄。其餘只追蹤同源連結；網站需允許瀏覽器跨來源讀取。若網站拒絕，可先將網頁存到本機，再載入檔案。</small></fieldset>
+<div class="cap-grid"><label>合訂書名<input id="cap-title" maxlength="140" value="離線閱讀合訂本"></label><label>最多收錄頁數<input id="cap-max" type="number" min="1" max="100" value="20"></label><label id="cap-depth-field" hidden>連結深度<input id="cap-depth" type="number" min="0" max="5" value="1"></label><label>文字編碼<select id="cap-charset"><option value="auto">自動（宣告、UTF-8、Big5）</option><option value="utf-8">UTF-8</option><option value="big5">Big5</option></select></label></div>
+<label class="cap-check"><input id="cap-img" type="checkbox" checked>內嵌 PNG、JPEG、GIF、WebP 圖片</label><small>每頁最多 2 MiB，每張圖片最多 1 MiB，整次讀取上限 24 MiB。</small>
+<div class="cap-actions"><button type="button" id="cap-go" class="primary">建立合訂本</button><button type="button" id="cap-stop" hidden>停止</button><a id="cap-download" hidden download>下載離線 HTML</a></div><p id="cap-status" role="status"></p><details id="cap-details" hidden><summary>略過項目</summary><div class="cap-log" id="cap-log"></div></details>
+<script>
+(()=>{
+'use strict';
+const get=id=>document.getElementById('cap-'+id);
+const MiB=1024*1024,localBase='https://local.invalid/';
+const allowed=new Set('a abbr address article aside b blockquote br caption cite code dd del div dl dt em figcaption figure footer h1 h2 h3 h4 h5 h6 header hr i img kbd li main mark nav ol p pre q ruby rp rt s samp section small span strong sub sup table tbody td tfoot th thead time tr u ul'.split(' '));
+const ignore=new Set('script style title head iframe frame object embed audio video canvas svg math noscript template input button select textarea link meta base'.split(' '));
+let files=[],run=null,downloadUrl='';
+function localKey(file){return localBase+(file.webkitRelativePath||file.name).split('/').map(encodeURIComponent).join('/')}
+function inputFiles(event){files=Array.from(event.target.files);get(event.target.id==='cap-dir'?'files':'dir').value='';get('summary').textContent='已選取 '+files.length+' 個檔案。';invalidate()}
+function invalidate(){if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl='';get('download').hidden=true;get('status').textContent='';get('details').hidden=true}
+get('files').onchange=get('dir').onchange=inputFiles;
+get('mode').onchange=()=>{const local=get('mode').value==='local';get('local').hidden=!local;get('web').hidden=local;get('depth-field').hidden=local;invalidate()};
+for(const id of ['url','filter','title','max','depth','charset','img'])get(id).addEventListener('input',invalidate);
+function urlOf(value,base){try{const u=new URL(value,base);if(!/^https?:$/.test(u.protocol)||u.username||u.password)return null;return u}catch{return null}}
+function key(u){const clean=new URL(u);clean.hash='';return clean.href}
+function decode(bytes,forced,header=''){
+  if(forced!=='auto')return new TextDecoder(forced).decode(bytes);
+  if(bytes[0]===0xef&&bytes[1]===0xbb&&bytes[2]===0xbf)return new TextDecoder().decode(bytes);
+  const head=new TextDecoder('latin1').decode(bytes.subarray(0,4096));
+  const enc=(/charset\s*=\s*["']?([\w.-]+)/i.exec(header)||/<meta\b[^>]*\bcharset\s*=\s*["']?([\w.-]+)/i.exec(head))?.[1];
+  if(enc){try{return new TextDecoder(enc).decode(bytes)}catch{}}
+  try{return new TextDecoder('utf-8',{fatal:true}).decode(bytes)}catch{return new TextDecoder('big5').decode(bytes)}
+}
+function parsePage(html,url){
+  const t=document.createElement('template');t.innerHTML=html;
+  const content=t.content;
+  const title=(content.querySelector('title')?.textContent||content.querySelector('h1')?.textContent||url).trim();
+  const base=urlOf(content.querySelector('base[href]')?.getAttribute('href')||url,url)?.href||url;
+  return {title,url,base,content};
+}
+function imageType(b){
+  const starts=(...a)=>a.every((v,i)=>b[i]===v);
+  if(starts(137,80,78,71,13,10,26,10))return 'image/png';
+  if(starts(255,216,255))return 'image/jpeg';
+  const text=new TextDecoder('latin1').decode(b.subarray(0,12));
+  if(/^GIF8[79]a/.test(text))return 'image/gif';
+  if(text.startsWith('RIFF')&&text.slice(8,12)==='WEBP')return 'image/webp';
+  return '';
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c])}
+function asData(bytes,mime){let str='';for(let i=0;i<bytes.length;i+=16384)str+=String.fromCharCode(...bytes.subarray(i,i+16384));return 'data:'+mime+';base64,'+btoa(str)}
+function frag(hash){try{return decodeURIComponent(hash.replace(/^#/,''))}catch{return hash.slice(1)}}
+async function build(o,report,signal){
+  const local=!!o.files;const fileMap=new Map((o.files||[]).map(f=>[localKey(f),f])),pages=[],visited=new Set(),queued=new Set(),issues=[],images=new Map();let consumed=0;
+  const note=message=>{if(issues.length<200)issues.push(message)};
+  const check=()=>{if(signal.aborted)throw Error('已停止擷取。')};
+  if(local&&fileMap.size!==o.files.length)throw Error('選取的檔案有重複路徑，請改用資料夾匯入。');
+  function account(n){consumed+=n;if(consumed>24*MiB)throw Error('已達整次讀取上限。請減少頁數或取消內嵌圖片。')}
+  const localUrls=[...fileMap.keys()].filter(s=>/\.x?html?$/i.test(s));
+  const start=local?localUrls[0]:urlOf(o.start)?.href;
+  if(!start)throw Error(local?'請選取至少一個 HTML 檔。':'請輸入完整的 http 或 https 網址。');
+  const origin=new URL(start).origin;
+  async function load(url,limit,kind){
+    check();
+    if(consumed>=24*MiB)throw Error('已達整次讀取上限。');
+    if(local){
+      const f=fileMap.get(url);if(!f)throw Error('未匯入檔案');
+      if(f.size>limit)throw Error('檔案超過大小限制');
+      account(f.size);return {bytes:new Uint8Array(await f.arrayBuffer()),url,type:f.type};
+    }
+    if(new URL(url).origin!==origin)throw Error('跨站來源');
+    const timer=new AbortController();const cancel=()=>timer.abort();signal.addEventListener('abort',cancel,{once:true});const timeout=setTimeout(cancel,9000);
+    try{
+      const r=await fetch(url,{signal:timer.signal,credentials:'omit',referrerPolicy:'no-referrer',redirect:'error'});
+      if(!r.ok)throw Error('HTTP '+r.status);
+      const type=r.headers.get('content-type')||'';
+      if(kind==='html'&&type&&!/text\/html|application\/xhtml\+xml/i.test(type))throw Error('來源並非 HTML');
+      if(Number(r.headers.get('content-length'))>limit)throw Error('檔案超過大小限制');
+      const reader=r.body.getReader(),parts=[];let size=0;
+      try{while(true){const x=await reader.read();if(x.done)break;size+=x.value.length;account(x.value.length);if(size>limit)throw Error('檔案超過大小限制');parts.push(x.value)}}finally{await reader.cancel().catch(()=>{})}
+      const bytes=new Uint8Array(size);let offset=0;for(const part of parts){bytes.set(part,offset);offset+=part.length}return {bytes,url,type};
+    } catch(e){check();if(e instanceof TypeError||timer.signal.aborted)throw Error('無法讀取；請檢查網址、跨來源授權、重新導向或逾時。');throw e}
+    finally{clearTimeout(timeout);signal.removeEventListener('abort',cancel)}
+  }
+  const queue=(local?localUrls.slice(0,o.max):[key(start)]).map(url=>({url,level:0}));queue.forEach(x=>queued.add(x.url));
+  if(local&&localUrls.length>o.max)note('已依頁數上限略過 '+(localUrls.length-o.max)+' 頁。');
+  for(let i=0;i<queue.length&&pages.length<o.max;i++){
+    check();const {url,level}=queue[i];if(visited.has(url))continue;visited.add(url);
+    report('正在讀取第 '+(pages.length+1)+' 頁…');
+    let page;try{const f=await load(url,2*MiB,'html');page=parsePage(decode(f.bytes,o.charset,f.type),url)}catch(e){check();if(!local&&i===0)throw e;note(url+'：'+e.message);continue}
+    pages.push(page);
+    if(!local&&level<o.depth){
+      for(const a of page.content.querySelectorAll('a[href]')){
+        const u=urlOf(a.getAttribute('href'),page.base);
+        if(!u||u.origin!==origin||!u.pathname.includes(o.filter)||/\.(?:pdf|epub|jpe?g|png|gif|webp|zip|mp[34]|pdb)$/i.test(u.pathname))continue;
+        const target=key(u);
+        if(!queued.has(target)&&queue.length<o.max*3){queued.add(target);queue.push({url:target,level:level+1})}
+      }
+    }
+  }
+  if(!pages.length)throw Error('沒有可匯出的 HTML 頁面。');
+  const idx=new Map(pages.map((p,i)=>[p.url,'page-'+(i+1)]));
+  function anchor(id,name){return id+'--'+Array.from(name,c=>c.codePointAt(0).toString(16)).join('-')}
+  async function picture(raw,p){
+    if(!o.images||!raw)return '';
+    const u=urlOf(raw,p.base);const data=/^data:image\/(png|jpeg|gif|webp);base64,([A-Za-z0-9+/=\s]+)$/i.exec(raw);
+    if(!u&&!data)return '';const url=data?raw:key(u);
+    if(images.has(url))return images.get(url);
+    if(images.size>=120){note('圖片已達 120 張上限。');return ''}
+    let result='';
+    try{
+      let bytes;
+      if(data){if(data[2].length>1.4*MiB)throw Error('圖片超過大小限制');bytes=Uint8Array.from(atob(data[2]),c=>c.charCodeAt(0));if(bytes.length>MiB)throw Error('圖片超過大小限制');account(bytes.length)}
+      else{bytes=(await load(url,MiB,'image')).bytes}
+      const mime=imageType(bytes);if(!mime)throw Error('未支援的圖片內容');result=asData(bytes,mime);
+    }catch(e){check();note((data?'內嵌圖片':url)+'：'+e.message)}
+    images.set(url,result);return result;
+  }
+  let renderedBudget=0;
+  async function render(n,p,id,depth=0){
+    check();if(depth>150)return '';
+    if(n.nodeType===3)return esc(n.nodeValue);if(n.nodeType!==1)return '';
+    const tag=n.localName;if(ignore.has(tag))return '';
+    const name=n.getAttribute('id')||(tag==='a'&&n.getAttribute('name'));
+    const marker=name?' id="'+anchor(id,name)+'"':'';
+    if(tag==='img'){
+      const alt=n.getAttribute('alt')||'';
+      const src=await picture(n.getAttribute('src'),p);
+      if(!src)return esc(alt);
+      renderedBudget+=src.length;if(renderedBudget>36*MiB)throw Error('合訂本圖片總量過大。請縮小來源或關閉圖片。');
+      return '<img'+marker+' alt="'+esc(alt)+'" src="'+src+'">';
+    }
+    const child=[];for(const el of n.childNodes)child.push(await render(el,p,id,depth+1));
+    if(!allowed.has(tag))return (name?'<span'+marker+'></span>':'')+child.join('');
+    let attr=marker;
+    if(tag==='a'&&n.hasAttribute('href')){
+      const u=urlOf(n.getAttribute('href'),p.base);
+      if(u){const target=idx.get(key(u));const href=target?'#'+(u.hash?anchor(target,frag(u.hash)):target):(!local||u.origin!==origin?u.href:'');if(href)attr+=' href="'+esc(href)+'"'}
+    }
+    if(tag==='th'||tag==='td')for(const k of ['colspan','rowspan'])if(/^\d{1,2}$/.test(n.getAttribute(k)||''))attr+=' '+k+'="'+n.getAttribute(k)+'"';
+    if(tag==='ol'&&/^-?\d{1,8}$/.test(n.getAttribute('start')||''))attr+=' start="'+n.getAttribute('start')+'"';
+    return '<'+tag+attr+'>'+child.join('')+(['br','hr'].includes(tag)?'':'</'+tag+'>');
+  }
+  const sections=[],toc=[];
+  for(const p of pages){const id=idx.get(p.url);report('正在編排：'+p.title);toc.push('<li><a href="#'+id+'">'+esc(p.title)+'</a></li>');const content=[];for(const n of p.content.childNodes)content.push(await render(n,p,id));sections.push('<article id="'+id+'"><a href="#contents">回目錄</a><h2>'+esc(p.title)+'</h2>'+content.join('')+'</article>')}
+  const style='body{max-width:48rem;margin:auto;padding:1rem;color:#193a33;font:1.08rem/1.75 system-ui,sans-serif;overflow-wrap:anywhere}article{margin:2rem 0;padding-top:1rem;border-top:1px solid #cbd6cd}a{color:#185d53}img{max-width:100%;height:auto}table{border-collapse:collapse}td,th{padding:.3em;border:1px solid #bbb}pre{white-space:pre-wrap}';
+  return {html:'<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(o.title)+'</title><style>'+style+'</style><main><h1>'+esc(o.title)+'</h1><nav id="contents"><h2>目錄</h2><ol>'+toc.join('')+'</ol></nav>'+sections.join('')+'</main></html>',issues,pages:pages.length};
+}
+get('stop').onclick=()=>run?.abort();
+get('go').onclick=async()=>{
+  if(run)return;invalidate();const o={files:get('mode').value==='local'?files:null,start:get('url').value.trim(),title:get('title').value.trim()||'離線閱讀合訂本',depth:Number(get('depth').value),max:Number(get('max').value),filter:get('filter').value.trim(),images:get('img').checked,charset:get('charset').value};
+  if(!Number.isInteger(o.max)||o.max<1||o.max>100||!Number.isInteger(o.depth)||o.depth<0||o.depth>5){get('status').textContent='頁數範圍為 1～100，連結深度範圍為 0～5。';return}
+  run=new AbortController();const controls=document.querySelectorAll('.capture-workspace input,.capture-workspace select,#cap-go');controls.forEach(c=>c.disabled=true);get('stop').hidden=false;
+  try{const result=await build(o,s=>get('status').textContent=s,run.signal);
+    downloadUrl=URL.createObjectURL(new Blob([result.html],{type:'text/html;charset=utf-8'}));const a=get('download');a.href=downloadUrl;a.download=o.title.replace(/[<>:"/\\|?*]/g,'_')+'.html';a.hidden=false;get('status').textContent='已收錄 '+result.pages+' 頁，可以下載。';get('log').textContent=result.issues.join('\n');get('details').hidden=!result.issues.length;
+  }catch(e){get('status').textContent=e.message}finally{controls.forEach(c=>c.disabled=false);get('stop').hidden=true;run=null}
+};
+})();
+</script>
+</section>
+
+</section>
+<section id="reader" aria-label="閱讀書架" hidden>
+<section class="card" id="pdr">
+  <h2>閱讀 PDB 電子書</h2>
+  <div class="twocol"><div><label for="pdrFile">開啟本機 PDB 或 PRC</label><input id="pdrFile" type="file" accept=".pdb,.prc"></div><div><label for="pdrEncoding">文字編碼</label><select id="pdrEncoding"><option value="auto">自動判讀</option><option value="big5">繁體中文 Big5</option><option value="utf-8">UTF-8</option><option value="windows-1252">西歐文字</option></select></div></div>
+  <p class="status" id="pdrStatus" role="status">可閱讀 PalmDOC 正文，並檢視 不同 PDB 的記錄結構。</p>
+  <details id="pdrShelf"><summary>本機書架</summary><div class="pdr-actions"><button type="button" id="pdrSaveBook" disabled>將目前檔案加入書架</button><select id="pdrShelfBook" aria-label="已儲存的書籍"></select><button type="button" id="pdrOpenBook" disabled>開啟藏書</button><button type="button" id="pdrDeleteBook" disabled>移出書架</button></div><p id="pdrShelfStatus" class="note" role="status">書籍儲存在目前使用的瀏覽器。</p></details>
+  <details hidden id="pdrDiagnostics"><summary>檔案結構與記錄</summary><dl id="pdrStats"></dl><div class="pdr-actions"><button type="button" id="pdrRecordPrev">前 50 筆</button><span id="pdrRecordRange"></span><button type="button" id="pdrRecordNext">後 50 筆</button></div>
+  <div class="pdr-table"><table><thead><tr><th>記錄編號</th><th>檔案位置</th><th>長度（位元組）</th><th>記錄識別碼</th></tr></thead><tbody id="pdrRecords"></tbody></table></div></details>
+  <div hidden id="pdrReading"><h3 id="pdrBook"></h3>
+    <div class="twocol"><div><label for="pdrChapter">章節索引</label><select id="pdrChapter"></select></div><div><label for="pdrFont">閱讀字級</label><select id="pdrFont"><option value="18">標準</option><option value="22">大字</option><option value="27">特大</option></select></div></div>
+    <label for="pdrQuery">全文搜尋</label><div class="pdr-actions"><input id="pdrQuery" type="search"><button type="button" id="pdrFind">搜尋</button><button type="button" id="pdrFindNext">下一筆</button><span id="pdrMatches" role="status"></span></div>
+    <div class="pdr-actions"><button type="button" id="pdrPrev">上一頁</button><span id="pdrPage"></span><button type="button" id="pdrNext">下一頁</button><button type="button" id="pdrNight" aria-pressed="false">夜間閱讀</button></div>
+    <article class="pdr-page" id="pdrText" tabindex="0" aria-label="正文"></article>
+    <div class="pdr-actions"><button type="button" id="pdrMark">為此頁加書籤</button><select aria-label="本機書籤" id="pdrBookmarks"></select><button type="button" id="pdrJump">前往書籤</button><button type="button" id="pdrRemove">移除書籤</button><button type="button" id="pdrEdit">送至 PalmDOC 製作區</button><button type="button" id="pdrDownload">匯出 UTF-8 文字檔</button></div>
+  </div>
+</section>
+<style>
+#pdr .pdr-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}#pdr .pdr-actions input,#pdr .pdr-actions select{flex:1 1 140px;width:auto;min-width:0}#pdr button{background:#fafbf8;color:#18433b;border:1px solid #bacabd;font:inherit;padding:5px 11px}#pdr .pdr-page{padding:1.2em clamp(12px,4vw,44px);border:1px solid #d5dbd1;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;background:#fafaf5;line-height:1.9;font-family:"Noto Serif TC","PMingLiU",serif;max-height:65vh;overflow:auto}#pdr .pdr-page.night{color:#e5eadf;background:#22332e}#pdr mark{background:#ffe394;color:#3e2c06}#pdr details{margin:15px 0}#pdr summary{cursor:pointer;font-weight:700}#pdr .pdr-table{overflow:auto;max-height:22em}#pdr table{border-collapse:collapse;width:100%;font-size:14px}#pdr th,#pdr td{text-align:left;border-bottom:1px solid #dae1d8;padding:3px 7px}#pdr th{position:sticky;top:0;background:#f2f5ee}
+</style>
+<script>
+(() => {
+  "use strict";
+  const root=document.getElementById("pdr");
+  const el=id=>root.querySelector("#pdr"+id);
+  const maxBytes=48*1024*1024;
+  const pageSize=2400;
+  const broken=message=>{throw new Error(message)};
+  function decode(bytes,choice){
+    if(choice!=="auto")return new TextDecoder(choice).decode(bytes);
+    for(const enc of ["utf-8","big5"]){try{return new TextDecoder(enc,{fatal:true}).decode(bytes)}catch{}}
+    return new TextDecoder("windows-1252").decode(bytes);
+  }
+  function parsePdb(bytes){
+    if(bytes.length<78)broken("檔頭不足 78 位元組。");
+    const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+    const count=view.getUint16(76), resource=Boolean(view.getUint16(32)&1);
+    const step=resource?10:8, end=78+count*step;
+    if(end>bytes.length)broken("記錄目錄長度超過檔案。");
+    const code=(at,size)=>String.fromCharCode(...bytes.subarray(at,at+size));
+    const records=[];
+    for(let i=0;i<count;i++){
+      const at=78+step*i,start=view.getUint32(at+(resource?6:0));
+      if(start<end||start>bytes.length)broken("第 "+i+" 筆記錄的位置無效。");
+      const id=resource?code(at,4)+" / "+view.getUint16(at+4):((bytes[at+5]<<16)|(bytes[at+6]<<8)|bytes[at+7]).toString(16).padStart(6,"0");
+      records.push({start,end:0,id});
+    }
+    const sorted=[...records].sort((a,b)=>a.start-b.start);
+    sorted.forEach((entry,i)=>{entry.end=i+1<sorted.length?sorted[i+1].start:bytes.length});
+    const n=bytes.subarray(0,32).indexOf(0);
+    return {records,type:code(60,4),creator:code(64,4),name:bytes.subarray(0,n<0?32:n),resource,chained:view.getUint32(72)!==0};
+  }
+  function inflate(block,out,start,limit){
+    let pos=start;
+    const put=byte=>{if(pos>=limit)broken("展開後的記錄長度超過檔頭宣告。");out[pos++]=byte};
+    for(let i=0;i<block.length;){
+      const c=block[i++];
+      if(c===0||(c>=9&&c<128)){put(c);continue}
+      if(c<=8){
+        if(i+c>block.length)broken("壓縮記錄中的文字區段不完整。");
+        for(let j=0;j<c;j++)put(block[i++]);
+      }else if(c>=192){put(32);put(c^128)}
+      else{
+        if(i===block.length)broken("壓縮記錄的參照不完整。");
+        const v=((c&63)<<8)|block[i++], distance=v>>3;
+        if(!distance||distance>pos-start)broken("壓縮記錄的參照位置無效。");
+        for(let j=0;j<(v&7)+3;j++)put(out[pos-distance]);
+      }
+    }
+    return pos;
+  }
+  function extract(bytes,db){
+    const head=db.records[0];
+    if(!head||head.end-head.start<16)broken("PalmDOC 缺少完整的文件檔頭。");
+    const v=new DataView(bytes.buffer,bytes.byteOffset+head.start,head.end-head.start);
+    const compression=v.getUint16(0), length=v.getUint32(4), count=v.getUint16(8), blockSize=v.getUint16(10);
+    if(![1,2].includes(compression))broken("這個 PalmDOC 的壓縮或保護方式尚未支援。");
+    if(length>maxBytes||count>=db.records.length||(!blockSize&&length)||length>count*blockSize)broken("PalmDOC 的文件長度或記錄數無法驗證。");
+    const out=new Uint8Array(length);let pos=0;
+    for(let i=1;i<=count;i++){
+      const r=db.records[i],block=bytes.subarray(r.start,r.end);
+      const limit=Math.min(out.length,pos+blockSize);
+      if(compression===2){pos=inflate(block,out,pos,limit);continue}
+      if(block.length>limit-pos)broken("文字記錄超過檔頭宣告的長度。");
+      out.set(block,pos);pos+=block.length;
+    }
+    if(pos!==length)broken("正文未達檔頭宣告的長度。");
+    return out;
+  }
+  let bytes,db,plain,currentFile,filename="",ticket=0,title="",body="",page=0,recordPage=0,key="",marks=[],chapters=[],hit=-1,query="",pageStarts=[];
+  function options(select,rows){select.replaceChildren(...rows.map(([label,value])=>new Option(label,String(value))))}
+  function records(){
+    const a=el("Records");a.replaceChildren();
+    const first=recordPage*50, last=Math.min(db.records.length,first+50);
+    for(let i=first;i<last;i++){
+      const r=db.records[i],tr=a.insertRow();
+      for(const value of [i,r.start,r.end-r.start,r.id])tr.insertCell().textContent=value;
+    }
+    el("RecordRange").textContent=last?(first+1)+"–"+last+" / "+db.records.length:"0 筆";
+    el("RecordPrev").disabled=!first;el("RecordNext").disabled=last>=db.records.length;
+  }
+  function renderMarks(){
+    options(el("Bookmarks"),marks.length?marks.map(p=>["第 "+(p+1)+" 頁 · "+body.slice(pageStarts[p],pageStarts[p]+24).trim(),p]):[["尚無本機書籤",""]]);
+    el("Jump").disabled=el("Remove").disabled=!marks.length;
+  }
+  function storeMarks(){try{localStorage.setItem(key,JSON.stringify(marks))}catch{el("Status").textContent="書籤只在本次開啟期間保留。"}renderMarks()}
+  function pageFor(index){
+    let low=0,high=pageStarts.length;
+    while(low+1<high){const mid=(low+high)>>1;if(pageStarts[mid]<=index)low=mid;else high=mid}
+    return low;
+  }
+  function showPage(p){
+    page=Math.max(0,Math.min(pageStarts.length-1,p));
+    try{localStorage.setItem(key+":page",String(page))}catch{}
+    const base=pageStarts[page],end=pageStarts[page+1]??body.length;
+    const box=el("Text");box.textContent=body.slice(base,end);
+    if(hit>=0&&hit<end&&hit+query.length>base){
+      const a=Math.max(base,hit),b=Math.min(end,hit+query.length),mark=document.createElement("mark");
+      mark.textContent=body.slice(a,b);box.replaceChildren(body.slice(base,a),mark,body.slice(b,end));
+      box.scrollTop=Math.max(0,mark.getBoundingClientRect().top-box.getBoundingClientRect().top+box.scrollTop-30);
+    }else box.scrollTop=0;
+    el("Prev").disabled=page===0;el("Next").disabled=page+1>=pageStarts.length;
+    el("Page").textContent="第 "+(page+1)+" / "+pageStarts.length+" 頁";
+    let n=0;for(let i=1;i<chapters.length&&chapters[i][1]<=base;i++)n=i;
+    el("Chapter").value=String(chapters[n][1]);
+  }
+  function renderBody(){
+    title=decode(db.name,el("Encoding").value)||filename;
+    body=decode(plain,el("Encoding").value).replace(/\r\n?/g,"\n");
+    pageStarts=[0];for(let i=pageSize;i<body.length;i+=pageSize){
+      if(body.charCodeAt(i)>=0xdc00&&body.charCodeAt(i)<=0xdfff)i++;
+      if(i<body.length)pageStarts.push(i);
+    }
+    chapters=[["全書開頭",0]];
+    const pattern=/^(?:[ \t]*(?:第[零〇一二兩三四五六七八九十百千萬0-9０-９]+[章篇部卷節首]|chapter\s+[\dIVXLCDM]+\b|卷[一二三四五六七八九十]+|#{1,4}\s))[^\n]{0,100}$/gim;
+    for(const match of body.matchAll(pattern)){if(chapters.length>=3000)break;chapters.push([match[0].trim(),match.index])}
+    options(el("Chapter"),chapters);el("Book").textContent=title;
+    marks=[];try{const saved=JSON.parse(localStorage.getItem(key)||"[]");if(Array.isArray(saved))marks=saved.filter(p=>Number.isInteger(p)&&p>=0&&p<pageStarts.length)}catch{}
+    let prior=0;try{const n=Number(localStorage.getItem(key+":page"));if(Number.isInteger(n))prior=n}catch{}
+    query="";hit=-1;el("Query").value="";el("Matches").textContent="";renderMarks();showPage(prior);
+  }
+  async function open(file){
+    const request=++ticket;
+    el("Diagnostics").hidden=el("Reading").hidden=true;el("Status").textContent="";
+    bytes=db=plain=currentFile=null;el("SaveBook").disabled=true;body="";pageStarts=[];marks=[];
+    if(!file)return;
+    try{
+      if(file.size>maxBytes)broken("瀏覽器閱讀上限為 48 MiB。");
+      const b=new Uint8Array(await file.arrayBuffer());if(request!==ticket)return;
+      bytes=b;db=parsePdb(b);filename=file.name;recordPage=0;
+      let hash=2166136261;for(const v of b)hash=Math.imul(hash^v,16777619);
+      key="pdb-workbench-reader:1:"+b.length+":"+(hash>>>0);
+      currentFile=file;el("SaveBook").disabled=!shelfDb;
+      const stats=el("Stats");stats.replaceChildren();
+      for(const [label,value] of [["資料庫名稱",decode(db.name,"auto")],["類型 / 建立程式",db.type+" / "+db.creator],["記錄數",db.records.length],["檔案大小",b.length.toLocaleString()+" bytes"]]){
+        const dt=document.createElement("dt"),dd=document.createElement("dd");dt.textContent=label;dd.textContent=value;stats.append(dt,dd);
+      }
+      records();el("Diagnostics").hidden=false;
+      if(db.chained){el("Status").textContent="這是串接式記錄目錄，僅顯示首段結構。";return}
+      if(db.type!=="TEXt"||db.creator!=="REAd"||db.resource){
+        el("Status").textContent=db.type==="SDoc"&&db.creator==="SilX"?"已辨識為圖文 PDB。可展開檔案結構，正文請以相容閱讀器開啟。":"已讀取檔案結構，此格式尚未支援正文閱讀。";el("Diagnostics").open=true;return;
+      }
+      plain=extract(b,db);
+      el("Reading").hidden=false;renderBody();el("Status").textContent="PalmDOC 正文已載入。";
+    }catch(e){el("Status").textContent=e.message;el("Reading").hidden=true}
+  }
+  function find(next){
+    const q=el("Query").value;
+    if(!q){hit=-1;query="";el("Matches").textContent="請輸入搜尋文字。";showPage(page);return}
+    const start=next&&query===q&&hit>=0?hit+q.length:0;
+    hit=body.indexOf(q,start);const wrap=hit<0&&start>0;
+    if(wrap)hit=body.indexOf(q);query=q;
+    if(hit<0){el("Matches").textContent="找不到符合的文字。";showPage(page);return}
+    showPage(pageFor(hit));el("Matches").textContent=(wrap?"已從開頭繼續 · ":"")+"第 "+(page+1)+" 頁";
+  }
+  let shelfDb=null;
+  function shelfStatus(message){el("ShelfStatus").textContent=message}
+  async function shelfAction(mode,task){
+    if(!shelfDb)throw new Error("此瀏覽器無法使用本機書架。");
+    const tx=shelfDb.transaction("books",mode);
+    return new Promise((resolve,reject)=>{
+      const request=task(tx.objectStore("books"));
+      tx.oncomplete=()=>resolve(request.result);
+      tx.onabort=()=>reject(tx.error||new Error("書架儲存未完成。"));
+    });
+  }
+  async function refreshShelf(selected){
+    const opts=[];
+    await new Promise((resolve,reject)=>{
+      const tx=shelfDb.transaction("books","readonly");
+      const req=tx.objectStore("books").index("label").openKeyCursor();
+      req.onsuccess=()=>{const cursor=req.result;if(cursor){opts.push([cursor.key,cursor.primaryKey]);cursor.continue()}};
+      tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error);
+    });
+    options(el("ShelfBook"),opts.length?opts:[["書架尚無藏書",""]]);
+    if(selected&&opts.some(row=>row[1]===selected))el("ShelfBook").value=selected;
+    el("OpenBook").disabled=el("DeleteBook").disabled=!opts.length;
+  }
+  try{
+    const connect=indexedDB.open("pdb-workbench-shelf",1);
+    connect.onupgradeneeded=()=>{connect.result.createObjectStore("books",{keyPath:"id"}).createIndex("label","label")};
+    connect.onsuccess=()=>{shelfDb=connect.result;el("SaveBook").disabled=!currentFile;refreshShelf().catch(e=>shelfStatus(e.message))};
+    connect.onerror=()=>shelfStatus("目前瀏覽器無法儲存書架，仍可直接開啟檔案。");
+  }catch{shelfStatus("目前瀏覽器無法儲存書架，仍可直接開啟檔案。")}
+  el("SaveBook").onclick=async()=>{
+    if(!currentFile)return;
+    const book={id:key,label:(decode(db.name,el("Encoding").value)||filename)+" · "+filename,file:currentFile};
+    try{await shelfAction("readwrite",store=>store.put(book));await refreshShelf(book.id);shelfStatus("已將檔案儲存於書架。")}catch(e){shelfStatus("無法加入書架："+e.message)}
+  };
+  el("OpenBook").onclick=async()=>{
+    try{const book=await shelfAction("readonly",store=>store.get(el("ShelfBook").value));
+      if(!book)throw new Error("書籍已移除。");el("File").value="";await open(book.file);shelfStatus("已從書架開啟 "+book.label);}
+    catch(e){shelfStatus(e.message)}
+  };
+  el("DeleteBook").onclick=async()=>{
+    const selected=el("ShelfBook"),id=selected.value;if(!id||!window.confirm("從本機書架移除「"+selected.selectedOptions[0].textContent+"」？"))return;
+    try{await shelfAction("readwrite",store=>store.delete(id));await refreshShelf();shelfStatus("已從本機書架移除。")}catch(e){shelfStatus(e.message)}
+  };
+  el("File").onchange=()=>open(el("File").files[0]);el("Encoding").onchange=()=>{if(plain)renderBody()};
+  el("RecordPrev").onclick=()=>{recordPage--;records()};el("RecordNext").onclick=()=>{recordPage++;records()};
+  el("Prev").onclick=()=>showPage(page-1);el("Next").onclick=()=>showPage(page+1);
+  el("Chapter").onchange=()=>{const at=Number(el("Chapter").value);showPage(pageFor(at));el("Chapter").value=String(at);
+    const box=el("Text"),offset=at-pageStarts[page];
+    if(offset>0){const anchor=document.createElement("span");anchor.textContent=body.slice(at,at+1);box.replaceChildren(body.slice(pageStarts[page],at),anchor,body.slice(at+1,pageStarts[page+1]??body.length));box.scrollTop+=anchor.getBoundingClientRect().top-box.getBoundingClientRect().top-12}
+  };
+  el("Font").onchange=()=>{el("Text").style.fontSize=el("Font").value+"px"};el("Font").onchange();
+  el("Night").onclick=()=>{const active=el("Text").classList.toggle("night");el("Night").setAttribute("aria-pressed",String(active))};
+  el("Find").onclick=()=>find(false);el("FindNext").onclick=()=>find(true);el("Query").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();find(true)}};
+  el("Mark").onclick=()=>{if(!marks.includes(page))marks.push(page);marks.sort((a,b)=>a-b);storeMarks();el("Bookmarks").value=String(page)};
+  el("Jump").onclick=()=>showPage(Number(el("Bookmarks").value));el("Remove").onclick=()=>{marks=marks.filter(p=>p!==Number(el("Bookmarks").value));storeMarks()};
+  el("Edit").onclick=()=>openPalmDraft(title,body);
+  el("Download").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([body],{type:"text/plain;charset=utf-8"}));a.download=(title.replace(/[\\/:*?"<>|]/g,"_")||"PalmDOC")+".txt";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)};
+})();
+</script>
+
+</section>
+<section id="settings" aria-label="轉檔環境" hidden>
+<div class="card" id="xsPanel">
+<h2>轉檔環境設定</h2>
+<p>建立或修改 PDB 轉檔引擎使用的 .ixs 設定檔。空白欄位交由原廠程式使用預設值。</p>
+<label>匯入現有 .ixs <input type="file" id="xsFile" accept=".ixs,.xml"></label>
+<form id="xsForm"><div id="xsFields"></div><button class="primary">下載 .ixs 設定</button></form>
+<p id="xsStatus" role="status"></p>
+
+</div>
+<script>
+(()=>{
+const root=document.getElementById('xsPanel'), fieldSets=root.querySelector('#xsFields'), status=root.querySelector('#xsStatus');
+const toggle=['no','yes'];
+const groups=[
+ ['轉檔及連線記錄','Logging',[
+  ['Conversion/Log','記錄轉檔過程',toggle],['Conversion/Path','轉檔記錄路徑'],['Conversion/MaxPrevLogSize','保留舊記錄大小（KB）','integer'],
+  ['Connection/Log','記錄連線過程',toggle],['Connection/Path','連線記錄路徑']]],
+ ['代理伺服器','Proxy',[
+  ['UseProxy','啟用代理',toggle],['Address','代理主機'],['Port','連接埠','port'],['UserName','使用者名稱'],['Password','密碼（匯出時以明文寫入檔案）','password'],['UseHTTP10','使用 HTTP 1.0',toggle]]],
+ ['HTTP 連線','HTTP',[
+  ['UserAgent/Send','傳送使用者代理字串',['no','default','custom']],['UserAgent/Name','自訂使用者代理字串'],
+  ['Timeouts/MaxRetriesPerPage','每頁重試次數','integer'],['Timeouts/MaxConnectTime','連線時限（秒）','integer'],['Timeouts/MaxSendTime','傳送時限（秒）','integer'],['Timeouts/MaxReceiveTime','接收時限（秒）','integer']]]
+];
+let doc=document.implementation.createDocument(null,'iSiloXSettings');const entries=[];
+for(const [title,group,fields] of groups){
+ const details=document.createElement('details'), summary=document.createElement('summary');summary.textContent=title;details.append(summary);details.open=group==='Logging';
+ const grid=document.createElement('div');grid.className='twocol';
+ for(const [path,labelText,kind] of fields){
+  const label=document.createElement('label');label.textContent=labelText;
+  const menu=Array.isArray(kind), control=document.createElement(menu?'select':'input');
+  if(menu){control.add(new Option('使用預設值',''));for(const val of kind){control.add(new Option(({yes:'是',no:'否',custom:'自訂',default:'原廠預設'})[val],val))}}
+  else{control.type=kind==='password'?'password':kind?'number':'text';control.autocomplete='off';if(control.type==='number'){control.min=kind==='port'?1:0;control.step=1;if(kind==='port')control.max=65535}}
+  label.append(control);grid.append(label);entries.push({path:[group,...path.split('/')],control,attribute:menu||kind==='integer'||kind==='port'});
+ }
+ details.append(grid);fieldSets.append(details);
+}
+function node(parts,create){
+ let el=doc.documentElement;
+ for(const key of parts){let child=Array.from(el.children).find(n=>n.tagName===key);if(!child){if(!create)return null;child=doc.createElement(key);el.append(child)}el=child}
+ return el;
+}
+root.querySelector('#xsFile').onchange=async event=>{
+ const file=event.target.files[0];if(!file)return;
+ try{if(file.size>4*1024*1024)throw Error('設定檔超過 4 MiB。');const source=await file.text();if(/<!DOCTYPE/i.test(source))throw Error('請使用一般 XML 設定檔。');
+ const imported=new DOMParser().parseFromString(source,'application/xml');if(imported.querySelector('parsererror')||imported.documentElement.tagName!=='iSiloXSettings')throw Error('請選擇有效的 IXS 設定檔。');
+ doc=imported;for(const e of entries){const el=node(e.path,false);const value=el?(e.attribute?el.getAttribute('value'):el.textContent)||'':'';
+ if(e.control.tagName==='SELECT'&&value&&!Array.from(e.control.options).some(o=>o.value===value))e.control.add(new Option(value,value));e.control.value=value;}
+ status.textContent='已載入 '+file.name;
+ }catch(error){status.textContent=error.message}
+};
+root.querySelector('form').onsubmit=event=>{
+ event.preventDefault();
+ for(const e of entries){const value=e.control.value;const el=node(e.path,!!value);if(!el)continue;if(!value){el.remove();continue}if(e.attribute)el.setAttribute('value',value);else el.textContent=value;}
+ const xml='<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(doc.documentElement);
+ download(new Blob([xml],{type:'application/xml'}),'pdb-settings.ixs');status.textContent='已匯出設定檔。';
+};
+})();
+</script>
+
+</section>
+<details class="card" style="margin:18px 0"><summary style="cursor:pointer;font-weight:bold">格式、原廠引擎與專案參考</summary><p>PalmDOC 可直接在瀏覽器製作與閱讀。圖文 PDB（SDoc / SilX）目前提供結構檢視；寫入及執行 IXL 轉檔設定需使用 Windows 原廠引擎。在 Windows 工作台執行 Run-Project.cmd，可選取 .ixl 和選用的 .ixs，確認目的地後批次轉檔。排程時間寫在 IXL 裡，執行時需要支援排程的原廠程式。</p><p>網頁合訂僅能直接抓取允許瀏覽器讀取的網站。也可以選取已存好的 HTML 資料夾。書架和編輯草稿儲存在目前瀏覽器，請使用匯出功能備份。</p><p>功能研究參考 <a href="https://github.com/jontey/YPSongbook">YPSongbook</a>、<a href="https://github.com/samortiz/ministry">ministry</a>、<a href="https://github.com/jichu4n/palm-pdb">palm-pdb</a>、<a href="https://github.com/atang0925/HarmonyPDB-Next">HarmonyPDB-Next</a> 與 <a href="https://github.com/lxmx/PyPlucker">PyPlucker</a>。工作頁內的功能採獨立實作。</p></details><p class="footer">瀏覽器工具在你的裝置上處理檔案。</p>
+</main>
+<script>
+"use strict";
+const utf8=new TextEncoder();
+function createProject(title,sources,destination,depth,images){
+  const absolute=/^(?:[a-z]:[\\/]|\\\\[^\\/]+[\\/][^\\/]+[\\/])/i;
+  const paths=sources.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  if(!title.trim()||!paths.length)throw Error("請填寫書名與至少一筆來源。");
+  for(const [index,path] of paths.entries()){
+    let ok=absolute.test(path);
+    if(!ok){try{ok=["http:","https:"].includes(new URL(path).protocol)}catch{}}
+    if(!ok)throw Error("第 "+(index+1)+" 行來源需為 HTTP(S) 網址或 Windows 完整路徑。");
+  }
+  if(!absolute.test(destination)||!destination.toLowerCase().endsWith(".pdb"))throw Error("輸出位置需為 Windows 完整路徑並以 .pdb 結尾。");
+  if(!/^\d+$/.test(depth)||Number(depth)>65535||!["include","exclude"].includes(images))throw Error("請確認連結深度與圖片設定。");
+  function escapeXML(str){
+    if(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/u.test(str))throw Error("輸入中含有無法寫入 XML 的字元。");
+    return str.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+  }
+  return ['<?xml version="1.0" encoding="UTF-8"?>','<iSiloXDocumentList>','  <iSiloXDocument>',
+    '    <Source><Sources>',...paths.map(p=>'      <Path>'+escapeXML(p)+'</Path>'),'    </Sources></Source>',
+    '    <Destination>','      <Title>'+escapeXML(title.trim())+'</Title>','      <Files><Path>'+escapeXML(destination)+'</Path></Files>','    </Destination>',
+    '    <LinkOptions><MaximumDepth value="'+Number(depth)+'"/><FollowOffsite value="no"/></LinkOptions>',
+    '    <ImageOptions><Images value="'+images+'"/></ImageOptions>',
+    '    <DocumentOptions><CharSet>UTF-8</CharSet></DocumentOptions>','  </iSiloXDocument>','</iSiloXDocumentList>',''].join('\r\n');
+}
+const MAX=16*1024*1024;
+let big5Codes;
+function buildBig5Map(){
+  const table=new Map(), decoder=new TextDecoder("big5",{fatal:true});
+  for(let lead=0x81;lead<=0xfe;lead++)for(let trail=0x40;trail<=0xfe;trail++){
+    if(trail>0x7e&&trail<0xa1)continue;
+    try{const char=decoder.decode(Uint8Array.of(lead,trail));
+      if(!table.has(char)||lead===0xa4)table.set(char,(lead<<8)|trail);
+    }catch{/* Unassigned pair. */}
+  }return table;
+}
+function encode(value,enc){
+  if(enc==="utf-8")return utf8.encode(value);
+  big5Codes??=buildBig5Map();
+  const result=new Uint8Array(value.length*2);let pos=0;
+  for(const char of value){
+    if(char.codePointAt(0)<128){result[pos++]=char.charCodeAt(0);continue}
+    const pair=big5Codes.get(char);
+    if(pair===undefined)throw Error("Big5 無法表示「"+char+"」。請切換為 UTF-8，或修改此字。");
+    result[pos++]=pair>>8;result[pos++]=pair&255;
+  }return result.subarray(0,pos);
+}
+function compressPalmRecord(data){
+  const out=[],last=new Map(),literals=[];
+  function flush(){
+    if(literals.length){out.push(literals.length,...literals);literals.length=0}
+  }
+  function keyAt(i){return (data[i]<<16)|(data[i+1]<<8)|data[i+2]}
+  let i=0;
+  while(i<data.length){
+    const byte=data[i],prev=i+2<data.length?last.get(keyAt(i)):undefined;
+    let length=0,advance=1;
+    if(prev!==undefined && i-prev<=2047){
+      while(length<10 && i+length<data.length && data[prev+length]===data[i+length])length++;
+    }
+    if(length>=3){
+      flush();
+      const marker=0x8000|((i-prev)<<3)|(length-3);
+      out.push(marker>>>8,marker&255);advance=length;
+    }else if(byte===32 && data[i+1]>=64 && data[i+1]<=127){
+      flush();out.push(0x80|data[i+1]);advance=2;
+    }else if(byte===0 || (byte>=9 && byte<=127)){
+      flush();out.push(byte);
+    }else{
+      literals.push(byte);if(literals.length===8)flush();
+    }
+    for(let pos=i;pos<i+advance && pos+2<data.length;pos++)last.set(keyAt(pos),pos);
+    i+=advance;
+  }
+  flush();return Uint8Array.from(out);
+}
+function writeBook(title,value,enc,compressed=false){
+  const body=encode(value.replace(/\r\n?/g,"\n"),enc);
+  if(!body.length||body.length>MAX)throw Error("內文需介於 1 byte 與 16 MiB 之間。");
+  const sections=Math.ceil(body.length/4096), count=sections+1, start=78+count*8+2;
+  const records=[];
+  let payloadLength=0;
+  for(let pos=0;pos<body.length;pos+=4096){
+    const part=body.subarray(pos,pos+4096);
+    const record=compressed?compressPalmRecord(part):part;
+    records.push(record);payloadLength+=record.length;
+  }
+  const bytes=new Uint8Array(start+16+payloadLength), view=new DataView(bytes.buffer);
+  let used=0;
+  for(const c of title){const part=encode(c,enc);if(used+part.length>31)break;bytes.set(part,used);used+=part.length;}
+  const time=Math.floor(Date.now()/1000)+2082844800;
+  view.setUint32(36,time);view.setUint32(40,time);bytes.set(utf8.encode("TEXtREAd"),60);
+  view.setUint32(68,count+1);view.setUint16(76,count);
+  view.setUint32(78,start);view.setUint32(82,1);
+  view.setUint16(start,compressed?2:1);view.setUint32(start+4,body.length);
+  view.setUint16(start+8,sections);view.setUint16(start+10,4096);
+  let offset=start+16;
+  records.forEach((record,i)=>{
+    const row=78+(i+1)*8;view.setUint32(row,offset);view.setUint32(row+4,i+2);
+    bytes.set(record,offset);offset+=record.length;
+  });
+  return bytes;
+}
+function decodeText(bytes,encoding){
+  if(encoding!=="auto")return new TextDecoder(encoding,{fatal:true}).decode(bytes);
+  try{return new TextDecoder("utf-8",{fatal:true}).decode(bytes)}catch{return new TextDecoder("big5",{fatal:true}).decode(bytes)}
+}
+function readHeader(buffer,size){
+  if(buffer.byteLength<78)throw Error("檔案過短，無法讀取完整的 PDB 檔頭。");
+  const bytes=new Uint8Array(buffer), view=new DataView(buffer);
+  const code=i=>String.fromCharCode(...bytes.slice(i,i+4));
+  const type=code(60),creator=code(64),count=view.getUint16(76),resource=!!(view.getUint16(32)&1);
+  if(!/^[ -~]{4}$/.test(type)||!/^[ -~]{4}$/.test(creator)||78+count*(resource?10:8)>size)throw Error("檔頭識別碼或記錄目錄長度不符 Palm 資料庫格式。");
+  const name=bytes.slice(0,32);const end=name.indexOf(0);
+  const raw=name.slice(0,end<0?32:end);let decoded;
+  try{decoded=decodeText(raw,"auto")}catch{decoded=new TextDecoder("windows-1252").decode(raw)}
+  return {"資料庫名稱":decoded||"（空白）","資料類型":type,"建立程式":creator,[resource?"資源數":"記錄數"]:String(count),"檔案大小":size.toLocaleString()+" bytes"};
+}
+</script>
+<script>
+const $=id=>document.getElementById(id);
+const pages=["project", "batch", "editor", "capture", "reader", "build", "inspect", "settings"];
+for(const id of pages){
+  $(id+"Tab").onclick=()=>{for(const key of pages){const selected=key===id;$(key).hidden=!selected;$(key+"Tab").classList.toggle("active",selected);$(key+"Tab").setAttribute("aria-pressed",String(selected))}};
+}
+function download(blob,filename){
+  const url=URL.createObjectURL(blob), link=document.createElement("a");
+  link.href=url;link.download=filename.replace(/[\\/:*?"<>|\x00-\x1f]/g,"_");
+  document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+  return link.download;
+}
+$("projectForm").onsubmit=event=>{
+  event.preventDefault();try{const title=$("ixTitle").value.trim();
+    const xml=createProject(title,$("ixSources").value,$("ixDest").value.trim(),$("ixDepth").value,$("ixImages").value);
+    const filename=download(new Blob([xml],{type:"application/xml"}),title+".ixl");
+    $("ixStatus").textContent="已產生 "+filename+"，可用 PDB 轉檔工具 開啟並轉換。";
+  }catch(e){$("ixStatus").textContent=e.message}
+};
+function openPalmDraft(title, text){
+  if($("content").value && $("content").value!==text && !confirm("以這本書的內容取代目前 PalmDOC 草稿？"))return;
+  ++importVersion;
+  $("content").value=text;$("book").value=title||"我的文件";$("buildTab").click();preview();$("book").focus();
+}
+function preview(){
+  const value=$("content").value;
+  $("pvTitle").textContent=$("book").value.trim()||"我的文件";
+  $("pvText").textContent=value?Array.from(value.slice(0,800)).slice(0,400).join(""):"尚未加入內文";
+  const count=Array.from(value).length;$("pvCount").textContent=count.toLocaleString()+" 字元"+(count>400?" · 預覽前 400 字元":"");
+  $("exportBtn").disabled=!value.length;$("buildStatus").textContent="";
+}
+$("book").oninput=preview;$("content").oninput=preview;
+let importVersion=0;
+async function loadText(){
+  const file=$("source").files[0],version=++importVersion;if(!file)return;
+  try{if(file.size>MAX)throw Error("請選擇 16 MiB 以內的 TXT 檔。");
+    const data=await file.arrayBuffer();if(version!==importVersion)return;
+    let value;try{value=decodeText(data,$("inputEnc").value)}catch{throw Error("無法以所選編碼讀取，請確認文字檔的編碼。")}
+    $("content").value=value;$("book").value=file.name.replace(/\.txt$/i,"");preview();
+  }catch(e){if(version===importVersion)$("buildStatus").textContent=e.message}
+}
+$("source").onchange=loadText;$("inputEnc").onchange=loadText;
+$("exportBtn").onclick=()=>{
+  const name=$("book").value.trim()||"我的文件";
+  try{const bytes=writeBook(name,$("content").value,$("outputEnc").value,$("palmCompression").value==="palmdoc");
+    const filename=download(new Blob([bytes],{type:"application/octet-stream"}),name+".pdb");
+    $("buildStatus").textContent="已產生 "+filename+"（"+bytes.length.toLocaleString()+" bytes）。";
+  }catch(e){$("buildStatus").textContent=e.message}
+};
+let inspectVersion=0;
+$("pdb").onchange=async()=>{
+  const file=$("pdb").files[0],version=++inspectVersion;$("info").replaceChildren();$("inspectStatus").textContent="";if(!file)return;
+  try{const result=readHeader(await file.slice(0,78).arrayBuffer(),file.size);if(version!==inspectVersion)return;
+    for(const [key,value] of Object.entries(result)){const term=document.createElement("dt"),definition=document.createElement("dd");term.textContent=key;definition.textContent=value;$("info").append(term,definition)}
+  }catch(e){if(version===inspectVersion)$("inspectStatus").textContent=e.message}
+};
+</script>
+</html>

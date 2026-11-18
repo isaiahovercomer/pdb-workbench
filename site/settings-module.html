@@ -1,0 +1,57 @@
+<div class="card" id="xsPanel">
+<h2>轉檔環境設定</h2>
+<p>建立或修改 PDB 轉檔引擎使用的 .ixs 設定檔。空白欄位交由原廠程式使用預設值。</p>
+<label>匯入現有 .ixs <input type="file" id="xsFile" accept=".ixs,.xml"></label>
+<form id="xsForm"><div id="xsFields"></div><button class="primary">下載 .ixs 設定</button></form>
+<p id="xsStatus" role="status"></p>
+
+</div>
+<script>
+(()=>{
+const root=document.getElementById('xsPanel'), fieldSets=root.querySelector('#xsFields'), status=root.querySelector('#xsStatus');
+const toggle=['no','yes'];
+const groups=[
+ ['轉檔及連線記錄','Logging',[
+  ['Conversion/Log','記錄轉檔過程',toggle],['Conversion/Path','轉檔記錄路徑'],['Conversion/MaxPrevLogSize','保留舊記錄大小（KB）','integer'],
+  ['Connection/Log','記錄連線過程',toggle],['Connection/Path','連線記錄路徑']]],
+ ['代理伺服器','Proxy',[
+  ['UseProxy','啟用代理',toggle],['Address','代理主機'],['Port','連接埠','port'],['UserName','使用者名稱'],['Password','密碼（匯出時以明文寫入檔案）','password'],['UseHTTP10','使用 HTTP 1.0',toggle]]],
+ ['HTTP 連線','HTTP',[
+  ['UserAgent/Send','傳送使用者代理字串',['no','default','custom']],['UserAgent/Name','自訂使用者代理字串'],
+  ['Timeouts/MaxRetriesPerPage','每頁重試次數','integer'],['Timeouts/MaxConnectTime','連線時限（秒）','integer'],['Timeouts/MaxSendTime','傳送時限（秒）','integer'],['Timeouts/MaxReceiveTime','接收時限（秒）','integer']]]
+];
+let doc=document.implementation.createDocument(null,'iSiloXSettings');const entries=[];
+for(const [title,group,fields] of groups){
+ const details=document.createElement('details'), summary=document.createElement('summary');summary.textContent=title;details.append(summary);details.open=group==='Logging';
+ const grid=document.createElement('div');grid.className='twocol';
+ for(const [path,labelText,kind] of fields){
+  const label=document.createElement('label');label.textContent=labelText;
+  const menu=Array.isArray(kind), control=document.createElement(menu?'select':'input');
+  if(menu){control.add(new Option('使用預設值',''));for(const val of kind){control.add(new Option(({yes:'是',no:'否',custom:'自訂',default:'原廠預設'})[val],val))}}
+  else{control.type=kind==='password'?'password':kind?'number':'text';control.autocomplete='off';if(control.type==='number'){control.min=kind==='port'?1:0;control.step=1;if(kind==='port')control.max=65535}}
+  label.append(control);grid.append(label);entries.push({path:[group,...path.split('/')],control,attribute:menu||kind==='integer'||kind==='port'});
+ }
+ details.append(grid);fieldSets.append(details);
+}
+function node(parts,create){
+ let el=doc.documentElement;
+ for(const key of parts){let child=Array.from(el.children).find(n=>n.tagName===key);if(!child){if(!create)return null;child=doc.createElement(key);el.append(child)}el=child}
+ return el;
+}
+root.querySelector('#xsFile').onchange=async event=>{
+ const file=event.target.files[0];if(!file)return;
+ try{if(file.size>4*1024*1024)throw Error('設定檔超過 4 MiB。');const source=await file.text();if(/<!DOCTYPE/i.test(source))throw Error('請使用一般 XML 設定檔。');
+ const imported=new DOMParser().parseFromString(source,'application/xml');if(imported.querySelector('parsererror')||imported.documentElement.tagName!=='iSiloXSettings')throw Error('請選擇有效的 IXS 設定檔。');
+ doc=imported;for(const e of entries){const el=node(e.path,false);const value=el?(e.attribute?el.getAttribute('value'):el.textContent)||'':'';
+ if(e.control.tagName==='SELECT'&&value&&!Array.from(e.control.options).some(o=>o.value===value))e.control.add(new Option(value,value));e.control.value=value;}
+ status.textContent='已載入 '+file.name;
+ }catch(error){status.textContent=error.message}
+};
+root.querySelector('form').onsubmit=event=>{
+ event.preventDefault();
+ for(const e of entries){const value=e.control.value;const el=node(e.path,!!value);if(!el)continue;if(!value){el.remove();continue}if(e.attribute)el.setAttribute('value',value);else el.textContent=value;}
+ const xml='<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(doc.documentElement);
+ download(new Blob([xml],{type:'application/xml'}),'pdb-settings.ixs');status.textContent='已匯出設定檔。';
+};
+})();
+</script>

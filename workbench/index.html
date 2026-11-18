@@ -1,0 +1,32 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PDB 製書工作台</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f1e7;color:#203e35;font-family:"Microsoft JhengHei",system-ui,sans-serif}header{padding:16px 5vw;background:#183b32;color:#fff;font-weight:bold;letter-spacing:.1em}main{max-width:790px;margin:42px auto;padding:0 20px}h1{font-family:Georgia,"Microsoft JhengHei",serif;font-size:clamp(30px,5vw,49px);margin:0 0 8px}p{line-height:1.6}.panel{border:1px solid #bfbcae;background:#fffdf8;margin:18px 0;padding:clamp(16px,4vw,32px);border-radius:8px}.tabs{display:flex;gap:8px;margin:0 0 22px}button,.action{font:inherit;font-weight:bold;cursor:pointer;padding:10px 18px;background:#fffdf8;color:#244338;border:1px solid #919e94;border-radius:5px}button[aria-pressed=true],.action{background:#204c3f;color:white}button:disabled{opacity:.55;cursor:wait}label{display:block;font-weight:bold;margin:14px 0 7px}input,textarea{width:100%;padding:12px;border:1px solid #a6aaa1;border-radius:4px;font:inherit;background:white}input[type=file]{padding:22px 14px;border-style:dashed}textarea{resize:vertical}small{display:block;color:#53635a;margin:6px 0 16px}.status{font-size:.9rem;border-left:3px solid #a78049;padding-left:11px}a{color:#235f50}#result{font-weight:bold;line-height:1.6}.download{display:inline-block;margin:8px 0}footer{font-size:.85rem;color:#59675f}button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid #b38427;outline-offset:2px}[hidden]{display:none!important}
+</style><header>PDB 製書工作台</header><main><h1>建立 PDB 電子書</h1><p>在這台 Windows 電腦上將單一來源轉為 圖文 PDB。</p>
+<div class="status" aria-live="polite"><span id="engine">正在偵測轉檔引擎…</span>  <button id="testEngine" type="button" hidden>測試引擎並下載範例</button><p id="testStatus" role="status"></p></div>
+<form class="panel" id="form"><div class="tabs" aria-label="來源類型"><button type="button" id="fileMode" aria-pressed="true">選取檔案</button><button type="button" id="textMode" aria-pressed="false">貼上文字</button></div>
+<div id="fileBox"><label for="file">來源檔案</label><input type="file" id="file" accept=".txt,.htm,.html,.epub"><small>UTF-8 TXT、獨立 HTML、未加密 EPUB，每份最多 32 MB。含多張圖片或多章的內容請優先使用 EPUB。</small></div>
+<div id="textBox" hidden><label for="content">文件內文</label><textarea id="content" rows="8" placeholder="在此輸入或貼上內文"></textarea></div>
+<label for="title">書名</label><input id="title" maxlength="31" required placeholder="在 PDB 書庫中顯示的名稱"><small>最多 31 個字元</small>
+<button class="action" id="submit">建立 PDB</button><div id="result" role="status"></div><a class="download" id="download" hidden>下載 PDB</a></form>
+<footer>關閉啟動視窗即可停止本機工作台。</footer></main>
+<script>
+const el=id=>document.getElementById(id);
+let mode='file', lastURL, busy=false;
+function clearResult(){if(lastURL){URL.revokeObjectURL(lastURL);lastURL=null;}el('download').hidden=true;el('result').textContent='';}
+function switchMode(next){if(busy)return;mode=next;clearResult();for(const id of ['file','text']){el(id+'Mode').setAttribute('aria-pressed',String(mode===id));el(id+'Box').hidden=mode!==id;}}
+el('fileMode').onclick=()=>switchMode('file');el('textMode').onclick=()=>switchMode('text');
+el('file').onchange=()=>{clearResult();const file=el('file').files[0];if(file)el('title').value=file.name.replace(/\.[^.]+$/,'').slice(0,31);};
+el('title').oninput=el('content').oninput=clearResult;
+async function engineStatus(){try{const r=await fetch('/status');const ready=(await r.text())==='ready';el('engine').textContent=ready?'已找到 PDB 轉檔引擎 執行檔':'請重新執行 Start.cmd，選擇 PDB 轉檔引擎或壓縮檔。';el('testEngine').hidden=!ready;}catch{el('engine').textContent='無法連上工作台。請重新執行 Start.cmd。';}}
+el('testEngine').onclick=async()=>{
+ const btn=el('testEngine'), msg=el('testStatus');btn.disabled=true;msg.textContent='正在轉換繁中測試文件…';
+ try{const r=await fetch('/convert',{method:'POST',headers:{'X-PDB-Title':encodeURIComponent('繁中測試'),'X-PDB-Source':'paste'},body:'繁體中文轉檔測試。\n第二段測試內容。'});if(!r.ok)throw Error(await r.text());const out=await r.blob();const bytes=new Uint8Array(await out.slice(60,68).arrayBuffer());if(String.fromCharCode(...bytes)!=='SDocSilX')throw Error('輸出檔頭不符合 PDB 格式。');const a=document.createElement('a');a.href=URL.createObjectURL(out);a.download='繁中測試.pdb';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000);msg.textContent='已完成轉檔，輸出 '+out.size+' bytes。請以相容閱讀器開啟範例，確認兩段中文均可閱讀。';}catch(e){msg.textContent=e.message}finally{btn.disabled=false}
+};
+engineStatus();window.addEventListener('focus',engineStatus);
+el('form').onsubmit=async e=>{e.preventDefault();if(busy)return;clearResult();const title=el('title').value.trim();const file=el('file').files[0];const body=mode==='file'?file:new Blob([el('content').value],{type:'text/plain;charset=utf-8'});
+if(!title||!body||!body.size||body.size>32*1024*1024){el('result').textContent='請填寫書名，並提供 1 byte 至 32 MB 的檔案或內文。';return;}
+const ext=mode==='file'?file.name.split('.').pop().toLowerCase():'paste';busy=true;for(const c of el('form').elements)c.disabled=true;el('result').textContent='正在轉換…';
+try{const r=await fetch('/convert',{method:'POST',headers:{'X-PDB-Title':encodeURIComponent(title),'X-PDB-Source':ext},body});if(!r.ok)throw new Error(await r.text());const blob=await r.blob();lastURL=URL.createObjectURL(blob);const link=el('download');link.href=lastURL;link.download=title.replace(/[<>:"/\\|?*]/g,'_')+'.pdb';link.hidden=false;link.textContent='下載 '+link.download;el('result').textContent='轉檔完成（'+blob.size.toLocaleString()+' bytes）';link.focus();}
+catch(err){el('result').textContent=err.message||'無法連上本機工作台。';}finally{busy=false;for(const c of el('form').elements)c.disabled=false;}};
+</script></html>
+

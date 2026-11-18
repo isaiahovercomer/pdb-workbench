@@ -1,0 +1,232 @@
+<section class="card" id="pdr">
+  <h2>閱讀 PDB 電子書</h2>
+  <div class="twocol"><div><label for="pdrFile">開啟本機 PDB 或 PRC</label><input id="pdrFile" type="file" accept=".pdb,.prc"></div><div><label for="pdrEncoding">文字編碼</label><select id="pdrEncoding"><option value="auto">自動判讀</option><option value="big5">繁體中文 Big5</option><option value="utf-8">UTF-8</option><option value="windows-1252">西歐文字</option></select></div></div>
+  <p class="status" id="pdrStatus" role="status">可閱讀 PalmDOC 正文，並檢視 不同 PDB 的記錄結構。</p>
+  <details id="pdrShelf"><summary>本機書架</summary><div class="pdr-actions"><button type="button" id="pdrSaveBook" disabled>將目前檔案加入書架</button><select id="pdrShelfBook" aria-label="已儲存的書籍"></select><button type="button" id="pdrOpenBook" disabled>開啟藏書</button><button type="button" id="pdrDeleteBook" disabled>移出書架</button></div><p id="pdrShelfStatus" class="note" role="status">書籍儲存在目前使用的瀏覽器。</p></details>
+  <details hidden id="pdrDiagnostics"><summary>檔案結構與記錄</summary><dl id="pdrStats"></dl><div class="pdr-actions"><button type="button" id="pdrRecordPrev">前 50 筆</button><span id="pdrRecordRange"></span><button type="button" id="pdrRecordNext">後 50 筆</button></div>
+  <div class="pdr-table"><table><thead><tr><th>記錄編號</th><th>檔案位置</th><th>長度（位元組）</th><th>記錄識別碼</th></tr></thead><tbody id="pdrRecords"></tbody></table></div></details>
+  <div hidden id="pdrReading"><h3 id="pdrBook"></h3>
+    <div class="twocol"><div><label for="pdrChapter">章節索引</label><select id="pdrChapter"></select></div><div><label for="pdrFont">閱讀字級</label><select id="pdrFont"><option value="18">標準</option><option value="22">大字</option><option value="27">特大</option></select></div></div>
+    <label for="pdrQuery">全文搜尋</label><div class="pdr-actions"><input id="pdrQuery" type="search"><button type="button" id="pdrFind">搜尋</button><button type="button" id="pdrFindNext">下一筆</button><span id="pdrMatches" role="status"></span></div>
+    <div class="pdr-actions"><button type="button" id="pdrPrev">上一頁</button><span id="pdrPage"></span><button type="button" id="pdrNext">下一頁</button><button type="button" id="pdrNight" aria-pressed="false">夜間閱讀</button></div>
+    <article class="pdr-page" id="pdrText" tabindex="0" aria-label="正文"></article>
+    <div class="pdr-actions"><button type="button" id="pdrMark">為此頁加書籤</button><select aria-label="本機書籤" id="pdrBookmarks"></select><button type="button" id="pdrJump">前往書籤</button><button type="button" id="pdrRemove">移除書籤</button><button type="button" id="pdrEdit">送至 PalmDOC 製作區</button><button type="button" id="pdrDownload">匯出 UTF-8 文字檔</button></div>
+  </div>
+</section>
+<style>
+#pdr .pdr-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}#pdr .pdr-actions input,#pdr .pdr-actions select{flex:1 1 140px;width:auto;min-width:0}#pdr button{background:#fafbf8;color:#18433b;border:1px solid #bacabd;font:inherit;padding:5px 11px}#pdr .pdr-page{padding:1.2em clamp(12px,4vw,44px);border:1px solid #d5dbd1;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;background:#fafaf5;line-height:1.9;font-family:"Noto Serif TC","PMingLiU",serif;max-height:65vh;overflow:auto}#pdr .pdr-page.night{color:#e5eadf;background:#22332e}#pdr mark{background:#ffe394;color:#3e2c06}#pdr details{margin:15px 0}#pdr summary{cursor:pointer;font-weight:700}#pdr .pdr-table{overflow:auto;max-height:22em}#pdr table{border-collapse:collapse;width:100%;font-size:14px}#pdr th,#pdr td{text-align:left;border-bottom:1px solid #dae1d8;padding:3px 7px}#pdr th{position:sticky;top:0;background:#f2f5ee}
+</style>
+<script>
+(() => {
+  "use strict";
+  const root=document.getElementById("pdr");
+  const el=id=>root.querySelector("#pdr"+id);
+  const maxBytes=48*1024*1024;
+  const pageSize=2400;
+  const broken=message=>{throw new Error(message)};
+  function decode(bytes,choice){
+    if(choice!=="auto")return new TextDecoder(choice).decode(bytes);
+    for(const enc of ["utf-8","big5"]){try{return new TextDecoder(enc,{fatal:true}).decode(bytes)}catch{}}
+    return new TextDecoder("windows-1252").decode(bytes);
+  }
+  function parsePdb(bytes){
+    if(bytes.length<78)broken("檔頭不足 78 位元組。");
+    const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+    const count=view.getUint16(76), resource=Boolean(view.getUint16(32)&1);
+    const step=resource?10:8, end=78+count*step;
+    if(end>bytes.length)broken("記錄目錄長度超過檔案。");
+    const code=(at,size)=>String.fromCharCode(...bytes.subarray(at,at+size));
+    const records=[];
+    for(let i=0;i<count;i++){
+      const at=78+step*i,start=view.getUint32(at+(resource?6:0));
+      if(start<end||start>bytes.length)broken("第 "+i+" 筆記錄的位置無效。");
+      const id=resource?code(at,4)+" / "+view.getUint16(at+4):((bytes[at+5]<<16)|(bytes[at+6]<<8)|bytes[at+7]).toString(16).padStart(6,"0");
+      records.push({start,end:0,id});
+    }
+    const sorted=[...records].sort((a,b)=>a.start-b.start);
+    sorted.forEach((entry,i)=>{entry.end=i+1<sorted.length?sorted[i+1].start:bytes.length});
+    const n=bytes.subarray(0,32).indexOf(0);
+    return {records,type:code(60,4),creator:code(64,4),name:bytes.subarray(0,n<0?32:n),resource,chained:view.getUint32(72)!==0};
+  }
+  function inflate(block,out,start,limit){
+    let pos=start;
+    const put=byte=>{if(pos>=limit)broken("展開後的記錄長度超過檔頭宣告。");out[pos++]=byte};
+    for(let i=0;i<block.length;){
+      const c=block[i++];
+      if(c===0||(c>=9&&c<128)){put(c);continue}
+      if(c<=8){
+        if(i+c>block.length)broken("壓縮記錄中的文字區段不完整。");
+        for(let j=0;j<c;j++)put(block[i++]);
+      }else if(c>=192){put(32);put(c^128)}
+      else{
+        if(i===block.length)broken("壓縮記錄的參照不完整。");
+        const v=((c&63)<<8)|block[i++], distance=v>>3;
+        if(!distance||distance>pos-start)broken("壓縮記錄的參照位置無效。");
+        for(let j=0;j<(v&7)+3;j++)put(out[pos-distance]);
+      }
+    }
+    return pos;
+  }
+  function extract(bytes,db){
+    const head=db.records[0];
+    if(!head||head.end-head.start<16)broken("PalmDOC 缺少完整的文件檔頭。");
+    const v=new DataView(bytes.buffer,bytes.byteOffset+head.start,head.end-head.start);
+    const compression=v.getUint16(0), length=v.getUint32(4), count=v.getUint16(8), blockSize=v.getUint16(10);
+    if(![1,2].includes(compression))broken("這個 PalmDOC 的壓縮或保護方式尚未支援。");
+    if(length>maxBytes||count>=db.records.length||(!blockSize&&length)||length>count*blockSize)broken("PalmDOC 的文件長度或記錄數無法驗證。");
+    const out=new Uint8Array(length);let pos=0;
+    for(let i=1;i<=count;i++){
+      const r=db.records[i],block=bytes.subarray(r.start,r.end);
+      const limit=Math.min(out.length,pos+blockSize);
+      if(compression===2){pos=inflate(block,out,pos,limit);continue}
+      if(block.length>limit-pos)broken("文字記錄超過檔頭宣告的長度。");
+      out.set(block,pos);pos+=block.length;
+    }
+    if(pos!==length)broken("正文未達檔頭宣告的長度。");
+    return out;
+  }
+  let bytes,db,plain,currentFile,filename="",ticket=0,title="",body="",page=0,recordPage=0,key="",marks=[],chapters=[],hit=-1,query="",pageStarts=[];
+  function options(select,rows){select.replaceChildren(...rows.map(([label,value])=>new Option(label,String(value))))}
+  function records(){
+    const a=el("Records");a.replaceChildren();
+    const first=recordPage*50, last=Math.min(db.records.length,first+50);
+    for(let i=first;i<last;i++){
+      const r=db.records[i],tr=a.insertRow();
+      for(const value of [i,r.start,r.end-r.start,r.id])tr.insertCell().textContent=value;
+    }
+    el("RecordRange").textContent=last?(first+1)+"–"+last+" / "+db.records.length:"0 筆";
+    el("RecordPrev").disabled=!first;el("RecordNext").disabled=last>=db.records.length;
+  }
+  function renderMarks(){
+    options(el("Bookmarks"),marks.length?marks.map(p=>["第 "+(p+1)+" 頁 · "+body.slice(pageStarts[p],pageStarts[p]+24).trim(),p]):[["尚無本機書籤",""]]);
+    el("Jump").disabled=el("Remove").disabled=!marks.length;
+  }
+  function storeMarks(){try{localStorage.setItem(key,JSON.stringify(marks))}catch{el("Status").textContent="書籤只在本次開啟期間保留。"}renderMarks()}
+  function pageFor(index){
+    let low=0,high=pageStarts.length;
+    while(low+1<high){const mid=(low+high)>>1;if(pageStarts[mid]<=index)low=mid;else high=mid}
+    return low;
+  }
+  function showPage(p){
+    page=Math.max(0,Math.min(pageStarts.length-1,p));
+    try{localStorage.setItem(key+":page",String(page))}catch{}
+    const base=pageStarts[page],end=pageStarts[page+1]??body.length;
+    const box=el("Text");box.textContent=body.slice(base,end);
+    if(hit>=0&&hit<end&&hit+query.length>base){
+      const a=Math.max(base,hit),b=Math.min(end,hit+query.length),mark=document.createElement("mark");
+      mark.textContent=body.slice(a,b);box.replaceChildren(body.slice(base,a),mark,body.slice(b,end));
+      box.scrollTop=Math.max(0,mark.getBoundingClientRect().top-box.getBoundingClientRect().top+box.scrollTop-30);
+    }else box.scrollTop=0;
+    el("Prev").disabled=page===0;el("Next").disabled=page+1>=pageStarts.length;
+    el("Page").textContent="第 "+(page+1)+" / "+pageStarts.length+" 頁";
+    let n=0;for(let i=1;i<chapters.length&&chapters[i][1]<=base;i++)n=i;
+    el("Chapter").value=String(chapters[n][1]);
+  }
+  function renderBody(){
+    title=decode(db.name,el("Encoding").value)||filename;
+    body=decode(plain,el("Encoding").value).replace(/\r\n?/g,"\n");
+    pageStarts=[0];for(let i=pageSize;i<body.length;i+=pageSize){
+      if(body.charCodeAt(i)>=0xdc00&&body.charCodeAt(i)<=0xdfff)i++;
+      if(i<body.length)pageStarts.push(i);
+    }
+    chapters=[["全書開頭",0]];
+    const pattern=/^(?:[ \t]*(?:第[零〇一二兩三四五六七八九十百千萬0-9０-９]+[章篇部卷節首]|chapter\s+[\dIVXLCDM]+\b|卷[一二三四五六七八九十]+|#{1,4}\s))[^\n]{0,100}$/gim;
+    for(const match of body.matchAll(pattern)){if(chapters.length>=3000)break;chapters.push([match[0].trim(),match.index])}
+    options(el("Chapter"),chapters);el("Book").textContent=title;
+    marks=[];try{const saved=JSON.parse(localStorage.getItem(key)||"[]");if(Array.isArray(saved))marks=saved.filter(p=>Number.isInteger(p)&&p>=0&&p<pageStarts.length)}catch{}
+    let prior=0;try{const n=Number(localStorage.getItem(key+":page"));if(Number.isInteger(n))prior=n}catch{}
+    query="";hit=-1;el("Query").value="";el("Matches").textContent="";renderMarks();showPage(prior);
+  }
+  async function open(file){
+    const request=++ticket;
+    el("Diagnostics").hidden=el("Reading").hidden=true;el("Status").textContent="";
+    bytes=db=plain=currentFile=null;el("SaveBook").disabled=true;body="";pageStarts=[];marks=[];
+    if(!file)return;
+    try{
+      if(file.size>maxBytes)broken("瀏覽器閱讀上限為 48 MiB。");
+      const b=new Uint8Array(await file.arrayBuffer());if(request!==ticket)return;
+      bytes=b;db=parsePdb(b);filename=file.name;recordPage=0;
+      let hash=2166136261;for(const v of b)hash=Math.imul(hash^v,16777619);
+      key="pdb-workbench-reader:1:"+b.length+":"+(hash>>>0);
+      currentFile=file;el("SaveBook").disabled=!shelfDb;
+      const stats=el("Stats");stats.replaceChildren();
+      for(const [label,value] of [["資料庫名稱",decode(db.name,"auto")],["類型 / 建立程式",db.type+" / "+db.creator],["記錄數",db.records.length],["檔案大小",b.length.toLocaleString()+" bytes"]]){
+        const dt=document.createElement("dt"),dd=document.createElement("dd");dt.textContent=label;dd.textContent=value;stats.append(dt,dd);
+      }
+      records();el("Diagnostics").hidden=false;
+      if(db.chained){el("Status").textContent="這是串接式記錄目錄，僅顯示首段結構。";return}
+      if(db.type!=="TEXt"||db.creator!=="REAd"||db.resource){
+        el("Status").textContent=db.type==="SDoc"&&db.creator==="SilX"?"已辨識為圖文 PDB。可展開檔案結構，正文請以相容閱讀器開啟。":"已讀取檔案結構，此格式尚未支援正文閱讀。";el("Diagnostics").open=true;return;
+      }
+      plain=extract(b,db);
+      el("Reading").hidden=false;renderBody();el("Status").textContent="PalmDOC 正文已載入。";
+    }catch(e){el("Status").textContent=e.message;el("Reading").hidden=true}
+  }
+  function find(next){
+    const q=el("Query").value;
+    if(!q){hit=-1;query="";el("Matches").textContent="請輸入搜尋文字。";showPage(page);return}
+    const start=next&&query===q&&hit>=0?hit+q.length:0;
+    hit=body.indexOf(q,start);const wrap=hit<0&&start>0;
+    if(wrap)hit=body.indexOf(q);query=q;
+    if(hit<0){el("Matches").textContent="找不到符合的文字。";showPage(page);return}
+    showPage(pageFor(hit));el("Matches").textContent=(wrap?"已從開頭繼續 · ":"")+"第 "+(page+1)+" 頁";
+  }
+  let shelfDb=null;
+  function shelfStatus(message){el("ShelfStatus").textContent=message}
+  async function shelfAction(mode,task){
+    if(!shelfDb)throw new Error("此瀏覽器無法使用本機書架。");
+    const tx=shelfDb.transaction("books",mode);
+    return new Promise((resolve,reject)=>{
+      const request=task(tx.objectStore("books"));
+      tx.oncomplete=()=>resolve(request.result);
+      tx.onabort=()=>reject(tx.error||new Error("書架儲存未完成。"));
+    });
+  }
+  async function refreshShelf(selected){
+    const opts=[];
+    await new Promise((resolve,reject)=>{
+      const tx=shelfDb.transaction("books","readonly");
+      const req=tx.objectStore("books").index("label").openKeyCursor();
+      req.onsuccess=()=>{const cursor=req.result;if(cursor){opts.push([cursor.key,cursor.primaryKey]);cursor.continue()}};
+      tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error);
+    });
+    options(el("ShelfBook"),opts.length?opts:[["書架尚無藏書",""]]);
+    if(selected&&opts.some(row=>row[1]===selected))el("ShelfBook").value=selected;
+    el("OpenBook").disabled=el("DeleteBook").disabled=!opts.length;
+  }
+  try{
+    const connect=indexedDB.open("pdb-workbench-shelf",1);
+    connect.onupgradeneeded=()=>{connect.result.createObjectStore("books",{keyPath:"id"}).createIndex("label","label")};
+    connect.onsuccess=()=>{shelfDb=connect.result;el("SaveBook").disabled=!currentFile;refreshShelf().catch(e=>shelfStatus(e.message))};
+    connect.onerror=()=>shelfStatus("目前瀏覽器無法儲存書架，仍可直接開啟檔案。");
+  }catch{shelfStatus("目前瀏覽器無法儲存書架，仍可直接開啟檔案。")}
+  el("SaveBook").onclick=async()=>{
+    if(!currentFile)return;
+    const book={id:key,label:(decode(db.name,el("Encoding").value)||filename)+" · "+filename,file:currentFile};
+    try{await shelfAction("readwrite",store=>store.put(book));await refreshShelf(book.id);shelfStatus("已將檔案儲存於書架。")}catch(e){shelfStatus("無法加入書架："+e.message)}
+  };
+  el("OpenBook").onclick=async()=>{
+    try{const book=await shelfAction("readonly",store=>store.get(el("ShelfBook").value));
+      if(!book)throw new Error("書籍已移除。");el("File").value="";await open(book.file);shelfStatus("已從書架開啟 "+book.label);}
+    catch(e){shelfStatus(e.message)}
+  };
+  el("DeleteBook").onclick=async()=>{
+    const selected=el("ShelfBook"),id=selected.value;if(!id||!window.confirm("從本機書架移除「"+selected.selectedOptions[0].textContent+"」？"))return;
+    try{await shelfAction("readwrite",store=>store.delete(id));await refreshShelf();shelfStatus("已從本機書架移除。")}catch(e){shelfStatus(e.message)}
+  };
+  el("File").onchange=()=>open(el("File").files[0]);el("Encoding").onchange=()=>{if(plain)renderBody()};
+  el("RecordPrev").onclick=()=>{recordPage--;records()};el("RecordNext").onclick=()=>{recordPage++;records()};
+  el("Prev").onclick=()=>showPage(page-1);el("Next").onclick=()=>showPage(page+1);
+  el("Chapter").onchange=()=>{const at=Number(el("Chapter").value);showPage(pageFor(at));el("Chapter").value=String(at);
+    const box=el("Text"),offset=at-pageStarts[page];
+    if(offset>0){const anchor=document.createElement("span");anchor.textContent=body.slice(at,at+1);box.replaceChildren(body.slice(pageStarts[page],at),anchor,body.slice(at+1,pageStarts[page+1]??body.length));box.scrollTop+=anchor.getBoundingClientRect().top-box.getBoundingClientRect().top-12}
+  };
+  el("Font").onchange=()=>{el("Text").style.fontSize=el("Font").value+"px"};el("Font").onchange();
+  el("Night").onclick=()=>{const active=el("Text").classList.toggle("night");el("Night").setAttribute("aria-pressed",String(active))};
+  el("Find").onclick=()=>find(false);el("FindNext").onclick=()=>find(true);el("Query").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();find(true)}};
+  el("Mark").onclick=()=>{if(!marks.includes(page))marks.push(page);marks.sort((a,b)=>a-b);storeMarks();el("Bookmarks").value=String(page)};
+  el("Jump").onclick=()=>showPage(Number(el("Bookmarks").value));el("Remove").onclick=()=>{marks=marks.filter(p=>p!==Number(el("Bookmarks").value));storeMarks()};
+  el("Edit").onclick=()=>openPalmDraft(title,body);
+  el("Download").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([body],{type:"text/plain;charset=utf-8"}));a.download=(title.replace(/[\\/:*?"<>|]/g,"_")||"PalmDOC")+".txt";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)};
+})();
+</script>

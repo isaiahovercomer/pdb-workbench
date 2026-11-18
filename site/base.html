@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PDB 文件工作台</title>
+<style>
+:root{color-scheme:light;--ink:#153d37;--muted:#51645b;--edge:#d3dbce;--paper:#f7f7f0;--green:#164c42;--gold:#edc879}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.65 "Source Sans 3","Microsoft JhengHei",system-ui,sans-serif}header{background:#fff;border-bottom:1px solid var(--edge)}.wrap{width:min(1100px,calc(100% - 40px));margin:auto}.bar{height:62px;display:flex;align-items:center;justify-content:space-between}.brand{display:flex;align-items:center;gap:10px;font-weight:750}.icon{width:30px;height:30px;background:var(--green);border-radius:6px;text-align:center;color:white;font:700 21px/31px Georgia}.bar a{color:var(--muted);font-size:14px}.hero{background:var(--ink);color:white;border-radius:16px;padding:clamp(26px,5vw,58px);margin:30px 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,30%);gap:20px;align-items:center;position:relative;overflow:hidden}.hero h1{font:700 clamp(32px,5vw,54px)/1.25 "Baskervville","PMingLiU",serif;letter-spacing:.04em;margin:0}.hero p{margin:12px 0 22px;color:#e0e9df}.primary,.secondary,button{font:inherit;border-radius:7px;padding:9px 15px;font-weight:650;cursor:pointer}.hero a{display:inline-flex;background:var(--gold);color:#283a2f;text-decoration:none}.docmark{transform:rotate(-8deg);width:145px;height:160px;justify-self:center;border:1px solid #b7c6a8;box-shadow:9px 9px #285347,10px 10px #9aac8d,18px 18px #285347,19px 19px #849d84;background:repeating-linear-gradient(0deg,#e9e9d4 0 17px,#c0c8ac 17px 18px);display:grid;place-items:center}.docmark b{font:700 30px Georgia;letter-spacing:.08em;background:var(--ink);color:var(--gold);padding:6px 12px}
+nav{display:flex;gap:8px;border-bottom:1px solid var(--edge);margin-bottom:20px}nav button{border:0;border-radius:0;background:transparent;color:var(--muted);padding:10px 15px;border-bottom:3px solid transparent}nav .active{color:var(--green);border-color:var(--green)}.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start;margin-bottom:34px}.card{background:#fff;border:1px solid var(--edge);border-radius:12px;padding:clamp(18px,3vw,30px)}h2,h3,p{margin:0}h2{font-size:22px;letter-spacing:.02em}h3{font-size:17px}.sub,.note{font-size:14px;color:var(--muted)}.sub{margin:4px 0 18px}label{display:block;font-size:14px;font-weight:700;margin:15px 0 5px}input,select,textarea{display:block;width:100%;border-radius:5px;border:1px solid #acb9ab;color:var(--ink);background:white;font:inherit;padding:8px 10px}input[type=file]{font-size:14px;background:#f8faf5}textarea{min-height:170px;resize:vertical}.twocol{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(105px,1fr);gap:10px}button.primary{color:white;background:var(--green);border:0;margin-top:16px}button:disabled{opacity:.5;cursor:default}a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #b77b28;outline-offset:2px}.sheet{min-height:176px;background:#faf9f2;border-top:3px solid #ada27c;margin:15px 0;padding:18px;overflow-wrap:anywhere}.sheet p{white-space:pre-wrap;margin-top:10px;font-family:"PMingLiU",serif}.status{margin-top:8px;color:#804c16;font-size:14px;white-space:pre-line}dl{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;margin-bottom:0}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}[hidden]{display:none!important}.footer{padding:0 0 25px;color:var(--muted);font-size:13px}a{color:var(--green)}@media(max-width:700px){.grid{grid-template-columns:1fr}.hero{grid-template-columns:1fr}.docmark{display:none}.wrap{width:calc(100% - 28px)}.hero{margin:16px 0}.bar{height:52px}.twocol{grid-template-columns:1fr}nav button{padding-inline:8px}}
+</style>
+<header><div class="bar wrap"><div class="brand"><span class="icon" aria-hidden="true">≡</span> PDB 文件工作台</div></div></header>
+<main class="wrap">
+<section class="hero"><div><h1>PDB 文件轉檔</h1><p>下載 Windows 工作台，解壓縮並啟動後，在本機網頁使用 轉檔引擎建立 圖文 PDB。需備妥官方轉檔程式。</p><a class="primary" href="./workbench.zip" download>↓ 下載 Windows 工作台</a></div><div class="docmark" aria-hidden="true"><b>.PDB</b></div></section>
+<nav aria-label="瀏覽器工具"><button id="projectTab" class="active" aria-pressed="true" aria-controls="project">PDB 轉檔專案</button><button id="buildTab" aria-pressed="false" aria-controls="build">建立 PalmDOC</button><button id="inspectTab" aria-pressed="false" aria-controls="inspect">檢視 PDB 檔頭</button></nav>
+<section id="project" class="grid"><form id="projectForm" class="card"><h2>建立 PDB 轉檔專案</h2><p class="sub">設定書名、來源與輸出位置，下載 PDB 轉檔工具 可開啟的 .ixl 專案。</p>
+<label for="ixTitle">書名</label><input id="ixTitle" required placeholder="例如：讀書筆記">
+<label for="ixSources">來源網址或 Windows 完整路徑（每行一筆）</label><textarea id="ixSources" required style="min-height:99px" placeholder="https://example.org/book/index.html&#10;C:\Books\notes.html"></textarea>
+<label for="ixDest">輸出 PDB 完整路徑</label><input id="ixDest" required placeholder="C:\Books\讀書筆記.pdb">
+<div class="twocol"><div><label for="ixDepth">跟隨同站連結</label><input type="number" id="ixDepth" min="0" max="65535" value="0" required aria-describedby="depthHint"><span id="depthHint" class="note">0 只收來源，1 加入下一層。</span></div><div><label for="ixImages">圖片</label><select id="ixImages"><option value="include">收錄圖片</option><option value="exclude">略過圖片</option></select></div></div>
+<button class="primary">下載 .ixl 專案</button><p role="status" class="status" id="ixStatus"></p></form>
+<aside class="card"><h2>如何取得 PDB</h2><ol style="padding-inline-start:1.5em"><li>在執行 PDB 轉檔工具 的電腦上，確認來源檔案與輸出資料夾都已存在。</li><li>用 PDB 轉檔工具 開啟下載的 .ixl，選取文件並執行轉換。</li><li>到設定的輸出位置取得 .pdb。</li></ol><h3>直接上傳檔案轉換</h3><p class="note">下載上方 Windows 工作台並解壓縮，執行 Start.cmd，首次選擇原廠 轉檔引擎 ZIP 或執行檔，即可進入本機網頁。</p><p></p></aside></section>
+<section id="build" class="grid" hidden><div class="card"><h2>純文字轉 PalmDOC</h2><p class="sub">在瀏覽器直接轉檔，適合支援 PalmDOC 的閱讀器。</p>
+<div class="twocol"><div><label for="source">匯入文字檔</label><input type="file" id="source" accept=".txt,text/plain"></div><div><label for="inputEnc">來源編碼</label><select id="inputEnc"><option value="auto">自動辨識</option><option value="utf-8">UTF-8</option><option value="big5">Big5</option></select></div></div>
+<label for="book">文件名稱</label><input id="book" value="我的文件" maxlength="130">
+<label for="content">內文</label><textarea id="content" placeholder="貼上文字，或從上方匯入 TXT 檔。"></textarea>
+<label for="outputEnc">輸出文字編碼</label><select id="outputEnc"><option value="big5">Big5（繁體中文舊式閱讀器）</option><option value="utf-8">UTF-8（需閱讀器支援）</option></select>
+<label for="palmCompression">文字記錄儲存方式</label><select id="palmCompression"><option value="none">未壓縮</option><option value="palmdoc">PalmDOC 壓縮</option></select>
+<button id="exportBtn" class="primary" disabled>下載 PalmDOC PDB</button><p class="status" id="buildStatus" role="status"></p></div>
+<aside class="card"><h2>內容預覽</h2><div class="sheet"><h3 id="pvTitle">我的文件</h3><p id="pvText">尚未加入內文</p></div><p class="note" id="pvCount">0 字元</p><p class="note">PalmDOC 儲存純文字。需要保留圖文與連結時，請使用上方的 PDB 工作台。</p></aside></section>
+<section id="inspect" class="card" hidden><h2>檢視 PDB 檔頭</h2><p class="sub">選擇檔案後，可查看資料庫名稱、類型、建立程式與記錄數。</p><label for="pdb">PDB 檔案</label><input type="file" id="pdb" accept=".pdb"><p id="inspectStatus" class="status" role="status"></p><dl id="info"></dl></section>
+<p class="footer">瀏覽器工具在你的裝置上處理檔案。</p>
+</main>
+<script>
+"use strict";
+const utf8=new TextEncoder();
+function createProject(title,sources,destination,depth,images){
+  const absolute=/^(?:[a-z]:[\\/]|\\\\[^\\/]+[\\/][^\\/]+[\\/])/i;
+  const paths=sources.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  if(!title.trim()||!paths.length)throw Error("請填寫書名與至少一筆來源。");
+  for(const [index,path] of paths.entries()){
+    let ok=absolute.test(path);
+    if(!ok){try{ok=["http:","https:"].includes(new URL(path).protocol)}catch{}}
+    if(!ok)throw Error("第 "+(index+1)+" 行來源需為 HTTP(S) 網址或 Windows 完整路徑。");
+  }
+  if(!absolute.test(destination)||!destination.toLowerCase().endsWith(".pdb"))throw Error("輸出位置需為 Windows 完整路徑並以 .pdb 結尾。");
+  if(!/^\d+$/.test(depth)||Number(depth)>65535||!["include","exclude"].includes(images))throw Error("請確認連結深度與圖片設定。");
+  function escapeXML(str){
+    if(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/u.test(str))throw Error("輸入中含有無法寫入 XML 的字元。");
+    return str.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+  }
+  return ['<?xml version="1.0" encoding="UTF-8"?>','<iSiloXDocumentList>','  <iSiloXDocument>',
+    '    <Source><Sources>',...paths.map(p=>'      <Path>'+escapeXML(p)+'</Path>'),'    </Sources></Source>',
+    '    <Destination>','      <Title>'+escapeXML(title.trim())+'</Title>','      <Files><Path>'+escapeXML(destination)+'</Path></Files>','    </Destination>',
+    '    <LinkOptions><MaximumDepth value="'+Number(depth)+'"/><FollowOffsite value="no"/></LinkOptions>',
+    '    <ImageOptions><Images value="'+images+'"/></ImageOptions>',
+    '    <DocumentOptions><CharSet>UTF-8</CharSet></DocumentOptions>','  </iSiloXDocument>','</iSiloXDocumentList>',''].join('\r\n');
+}
+const MAX=16*1024*1024;
+let big5Codes;
+function buildBig5Map(){
+  const table=new Map(), decoder=new TextDecoder("big5",{fatal:true});
+  for(let lead=0x81;lead<=0xfe;lead++)for(let trail=0x40;trail<=0xfe;trail++){
+    if(trail>0x7e&&trail<0xa1)continue;
+    try{const char=decoder.decode(Uint8Array.of(lead,trail));
+      if(!table.has(char)||lead===0xa4)table.set(char,(lead<<8)|trail);
+    }catch{/* Unassigned pair. */}
+  }return table;
+}
+function encode(value,enc){
+  if(enc==="utf-8")return utf8.encode(value);
+  big5Codes??=buildBig5Map();
+  const result=new Uint8Array(value.length*2);let pos=0;
+  for(const char of value){
+    if(char.codePointAt(0)<128){result[pos++]=char.charCodeAt(0);continue}
+    const pair=big5Codes.get(char);
+    if(pair===undefined)throw Error("Big5 無法表示「"+char+"」。請切換為 UTF-8，或修改此字。");
+    result[pos++]=pair>>8;result[pos++]=pair&255;
+  }return result.subarray(0,pos);
+}
+function compressPalmRecord(data){
+  const out=[],last=new Map(),literals=[];
+  function flush(){
+    if(literals.length){out.push(literals.length,...literals);literals.length=0}
+  }
+  function keyAt(i){return (data[i]<<16)|(data[i+1]<<8)|data[i+2]}
+  let i=0;
+  while(i<data.length){
+    const byte=data[i],prev=i+2<data.length?last.get(keyAt(i)):undefined;
+    let length=0,advance=1;
+    if(prev!==undefined && i-prev<=2047){
+      while(length<10 && i+length<data.length && data[prev+length]===data[i+length])length++;
+    }
+    if(length>=3){
+      flush();
+      const marker=0x8000|((i-prev)<<3)|(length-3);
+      out.push(marker>>>8,marker&255);advance=length;
+    }else if(byte===32 && data[i+1]>=64 && data[i+1]<=127){
+      flush();out.push(0x80|data[i+1]);advance=2;
+    }else if(byte===0 || (byte>=9 && byte<=127)){
+      flush();out.push(byte);
+    }else{
+      literals.push(byte);if(literals.length===8)flush();
+    }
+    for(let pos=i;pos<i+advance && pos+2<data.length;pos++)last.set(keyAt(pos),pos);
+    i+=advance;
+  }
+  flush();return Uint8Array.from(out);
+}
+function writeBook(title,value,enc,compressed=false){
+  const body=encode(value.replace(/\r\n?/g,"\n"),enc);
+  if(!body.length||body.length>MAX)throw Error("內文需介於 1 byte 與 16 MiB 之間。");
+  const sections=Math.ceil(body.length/4096), count=sections+1, start=78+count*8+2;
+  const records=[];
+  let payloadLength=0;
+  for(let pos=0;pos<body.length;pos+=4096){
+    const part=body.subarray(pos,pos+4096);
+    const record=compressed?compressPalmRecord(part):part;
+    records.push(record);payloadLength+=record.length;
+  }
+  const bytes=new Uint8Array(start+16+payloadLength), view=new DataView(bytes.buffer);
+  let used=0;
+  for(const c of title){const part=encode(c,enc);if(used+part.length>31)break;bytes.set(part,used);used+=part.length;}
+  const time=Math.floor(Date.now()/1000)+2082844800;
+  view.setUint32(36,time);view.setUint32(40,time);bytes.set(utf8.encode("TEXtREAd"),60);
+  view.setUint32(68,count+1);view.setUint16(76,count);
+  view.setUint32(78,start);view.setUint32(82,1);
+  view.setUint16(start,compressed?2:1);view.setUint32(start+4,body.length);
+  view.setUint16(start+8,sections);view.setUint16(start+10,4096);
+  let offset=start+16;
+  records.forEach((record,i)=>{
+    const row=78+(i+1)*8;view.setUint32(row,offset);view.setUint32(row+4,i+2);
+    bytes.set(record,offset);offset+=record.length;
+  });
+  return bytes;
+}
+function decodeText(bytes,encoding){
+  if(encoding!=="auto")return new TextDecoder(encoding,{fatal:true}).decode(bytes);
+  try{return new TextDecoder("utf-8",{fatal:true}).decode(bytes)}catch{return new TextDecoder("big5",{fatal:true}).decode(bytes)}
+}
+function readHeader(buffer,size){
+  if(buffer.byteLength<78)throw Error("檔案過短，無法讀取完整的 PDB 檔頭。");
+  const bytes=new Uint8Array(buffer), view=new DataView(buffer);
+  const code=i=>String.fromCharCode(...bytes.slice(i,i+4));
+  const type=code(60),creator=code(64),count=view.getUint16(76),resource=!!(view.getUint16(32)&1);
+  if(!/^[ -~]{4}$/.test(type)||!/^[ -~]{4}$/.test(creator)||78+count*(resource?10:8)>size)throw Error("檔頭識別碼或記錄目錄長度不符 Palm 資料庫格式。");
+  const name=bytes.slice(0,32);const end=name.indexOf(0);
+  const raw=name.slice(0,end<0?32:end);let decoded;
+  try{decoded=decodeText(raw,"auto")}catch{decoded=new TextDecoder("windows-1252").decode(raw)}
+  return {"資料庫名稱":decoded||"（空白）","資料類型":type,"建立程式":creator,[resource?"資源數":"記錄數"]:String(count),"檔案大小":size.toLocaleString()+" bytes"};
+}
+</script>
+<script>
+const $=id=>document.getElementById(id);
+const pages=["project","build","inspect"];
+for(const id of pages){
+  $(id+"Tab").onclick=()=>{for(const key of pages){const selected=key===id;$(key).hidden=!selected;$(key+"Tab").classList.toggle("active",selected);$(key+"Tab").setAttribute("aria-pressed",String(selected))}};
+}
+function download(blob,filename){
+  const url=URL.createObjectURL(blob), link=document.createElement("a");
+  link.href=url;link.download=filename.replace(/[\\/:*?"<>|\x00-\x1f]/g,"_");
+  document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+  return link.download;
+}
+$("projectForm").onsubmit=event=>{
+  event.preventDefault();try{const title=$("ixTitle").value.trim();
+    const xml=createProject(title,$("ixSources").value,$("ixDest").value.trim(),$("ixDepth").value,$("ixImages").value);
+    const filename=download(new Blob([xml],{type:"application/xml"}),title+".ixl");
+    $("ixStatus").textContent="已產生 "+filename+"，可用 PDB 轉檔工具 開啟並轉換。";
+  }catch(e){$("ixStatus").textContent=e.message}
+};
+function openPalmDraft(title, text){
+  if($("content").value && $("content").value!==text && !confirm("以這本書的內容取代目前 PalmDOC 草稿？"))return;
+  ++importVersion;
+  $("content").value=text;$("book").value=title||"我的文件";$("buildTab").click();preview();$("book").focus();
+}
+function preview(){
+  const value=$("content").value;
+  $("pvTitle").textContent=$("book").value.trim()||"我的文件";
+  $("pvText").textContent=value?Array.from(value.slice(0,800)).slice(0,400).join(""):"尚未加入內文";
+  const count=Array.from(value).length;$("pvCount").textContent=count.toLocaleString()+" 字元"+(count>400?" · 預覽前 400 字元":"");
+  $("exportBtn").disabled=!value.length;$("buildStatus").textContent="";
+}
+$("book").oninput=preview;$("content").oninput=preview;
+let importVersion=0;
+async function loadText(){
+  const file=$("source").files[0],version=++importVersion;if(!file)return;
+  try{if(file.size>MAX)throw Error("請選擇 16 MiB 以內的 TXT 檔。");
+    const data=await file.arrayBuffer();if(version!==importVersion)return;
+    let value;try{value=decodeText(data,$("inputEnc").value)}catch{throw Error("無法以所選編碼讀取，請確認文字檔的編碼。")}
+    $("content").value=value;$("book").value=file.name.replace(/\.txt$/i,"");preview();
+  }catch(e){if(version===importVersion)$("buildStatus").textContent=e.message}
+}
+$("source").onchange=loadText;$("inputEnc").onchange=loadText;
+$("exportBtn").onclick=()=>{
+  const name=$("book").value.trim()||"我的文件";
+  try{const bytes=writeBook(name,$("content").value,$("outputEnc").value,$("palmCompression").value==="palmdoc");
+    const filename=download(new Blob([bytes],{type:"application/octet-stream"}),name+".pdb");
+    $("buildStatus").textContent="已產生 "+filename+"（"+bytes.length.toLocaleString()+" bytes）。";
+  }catch(e){$("buildStatus").textContent=e.message}
+};
+let inspectVersion=0;
+$("pdb").onchange=async()=>{
+  const file=$("pdb").files[0],version=++inspectVersion;$("info").replaceChildren();$("inspectStatus").textContent="";if(!file)return;
+  try{const result=readHeader(await file.slice(0,78).arrayBuffer(),file.size);if(version!==inspectVersion)return;
+    for(const [key,value] of Object.entries(result)){const term=document.createElement("dt"),definition=document.createElement("dd");term.textContent=key;definition.textContent=value;$("info").append(term,definition)}
+  }catch(e){if(version===inspectVersion)$("inspectStatus").textContent=e.message}
+};
+</script>
+</html>

@@ -1,0 +1,163 @@
+<section class="capture-workspace" aria-labelledby="cap-heading">
+<style>
+.capture-workspace{color:var(--ink,#173e37)}.capture-workspace .cap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(245px,100%),1fr));gap:1rem}.capture-workspace fieldset{border:1px solid var(--edge,#d7dfd4);border-radius:10px;padding:1rem;margin:.8rem 0;min-width:0}.capture-workspace legend{font-weight:700}.capture-workspace input:not([type=checkbox]),.capture-workspace select{display:block;width:100%;max-width:100%;margin:.3rem 0 .8rem;padding:.48rem;box-sizing:border-box}.capture-workspace .cap-actions{display:flex;gap:.65rem;align-items:center;flex-wrap:wrap}.capture-workspace .cap-log{white-space:pre-wrap;overflow-wrap:anywhere;max-height:12rem;overflow:auto;font-size:.9rem}.capture-workspace .cap-check{display:flex;gap:.5rem;align-items:center}.capture-workspace .cap-check input{width:auto}
+</style>
+<h2 id="cap-heading">網頁離線合訂</h2>
+<p>收錄多個網頁，保留目錄、段落、表格和章節連結，下載為一份可離線閱讀的 HTML。</p>
+<label for="cap-mode">來源</label><select id="cap-mode"><option value="local">本機 HTML 檔案或資料夾</option><option value="web">從一個網址擷取同站網頁</option></select>
+<fieldset id="cap-local"><legend>選擇來源檔案</legend><div class="cap-grid"><label>HTML 與圖片（可複選）<input id="cap-files" type="file" multiple accept=".htm,.html,.xhtml,.png,.jpg,.jpeg,.gif,.webp"></label><label>載入整個資料夾<input id="cap-dir" type="file" webkitdirectory multiple></label></div><small>有子目錄或相對路徑圖片時，請選擇資料夾。每次選取會取代上次選取的檔案。</small><p id="cap-summary" aria-live="polite"></p></fieldset>
+<fieldset id="cap-web" hidden><legend>網站來源</legend><label>起始網址<input id="cap-url" type="url" placeholder="https://example.org/books/index.html"></label><label>收錄路徑包含（選填）<input id="cap-filter" placeholder="/books/"></label><small>起始頁一定收錄。其餘只追蹤同源連結；網站需允許瀏覽器跨來源讀取。若網站拒絕，可先將網頁存到本機，再載入檔案。</small></fieldset>
+<div class="cap-grid"><label>合訂書名<input id="cap-title" maxlength="140" value="離線閱讀合訂本"></label><label>最多收錄頁數<input id="cap-max" type="number" min="1" max="100" value="20"></label><label id="cap-depth-field" hidden>連結深度<input id="cap-depth" type="number" min="0" max="5" value="1"></label><label>文字編碼<select id="cap-charset"><option value="auto">自動（宣告、UTF-8、Big5）</option><option value="utf-8">UTF-8</option><option value="big5">Big5</option></select></label></div>
+<label class="cap-check"><input id="cap-img" type="checkbox" checked>內嵌 PNG、JPEG、GIF、WebP 圖片</label><small>每頁最多 2 MiB，每張圖片最多 1 MiB，整次讀取上限 24 MiB。</small>
+<div class="cap-actions"><button type="button" id="cap-go" class="primary">建立合訂本</button><button type="button" id="cap-stop" hidden>停止</button><a id="cap-download" hidden download>下載離線 HTML</a></div><p id="cap-status" role="status"></p><details id="cap-details" hidden><summary>略過項目</summary><div class="cap-log" id="cap-log"></div></details>
+<script>
+(()=>{
+'use strict';
+const get=id=>document.getElementById('cap-'+id);
+const MiB=1024*1024,localBase='https://local.invalid/';
+const allowed=new Set('a abbr address article aside b blockquote br caption cite code dd del div dl dt em figcaption figure footer h1 h2 h3 h4 h5 h6 header hr i img kbd li main mark nav ol p pre q ruby rp rt s samp section small span strong sub sup table tbody td tfoot th thead time tr u ul'.split(' '));
+const ignore=new Set('script style title head iframe frame object embed audio video canvas svg math noscript template input button select textarea link meta base'.split(' '));
+let files=[],run=null,downloadUrl='';
+function localKey(file){return localBase+(file.webkitRelativePath||file.name).split('/').map(encodeURIComponent).join('/')}
+function inputFiles(event){files=Array.from(event.target.files);get(event.target.id==='cap-dir'?'files':'dir').value='';get('summary').textContent='已選取 '+files.length+' 個檔案。';invalidate()}
+function invalidate(){if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl='';get('download').hidden=true;get('status').textContent='';get('details').hidden=true}
+get('files').onchange=get('dir').onchange=inputFiles;
+get('mode').onchange=()=>{const local=get('mode').value==='local';get('local').hidden=!local;get('web').hidden=local;get('depth-field').hidden=local;invalidate()};
+for(const id of ['url','filter','title','max','depth','charset','img'])get(id).addEventListener('input',invalidate);
+function urlOf(value,base){try{const u=new URL(value,base);if(!/^https?:$/.test(u.protocol)||u.username||u.password)return null;return u}catch{return null}}
+function key(u){const clean=new URL(u);clean.hash='';return clean.href}
+function decode(bytes,forced,header=''){
+  if(forced!=='auto')return new TextDecoder(forced).decode(bytes);
+  if(bytes[0]===0xef&&bytes[1]===0xbb&&bytes[2]===0xbf)return new TextDecoder().decode(bytes);
+  const head=new TextDecoder('latin1').decode(bytes.subarray(0,4096));
+  const enc=(/charset\s*=\s*["']?([\w.-]+)/i.exec(header)||/<meta\b[^>]*\bcharset\s*=\s*["']?([\w.-]+)/i.exec(head))?.[1];
+  if(enc){try{return new TextDecoder(enc).decode(bytes)}catch{}}
+  try{return new TextDecoder('utf-8',{fatal:true}).decode(bytes)}catch{return new TextDecoder('big5').decode(bytes)}
+}
+function parsePage(html,url){
+  const t=document.createElement('template');t.innerHTML=html;
+  const content=t.content;
+  const title=(content.querySelector('title')?.textContent||content.querySelector('h1')?.textContent||url).trim();
+  const base=urlOf(content.querySelector('base[href]')?.getAttribute('href')||url,url)?.href||url;
+  return {title,url,base,content};
+}
+function imageType(b){
+  const starts=(...a)=>a.every((v,i)=>b[i]===v);
+  if(starts(137,80,78,71,13,10,26,10))return 'image/png';
+  if(starts(255,216,255))return 'image/jpeg';
+  const text=new TextDecoder('latin1').decode(b.subarray(0,12));
+  if(/^GIF8[79]a/.test(text))return 'image/gif';
+  if(text.startsWith('RIFF')&&text.slice(8,12)==='WEBP')return 'image/webp';
+  return '';
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c])}
+function asData(bytes,mime){let str='';for(let i=0;i<bytes.length;i+=16384)str+=String.fromCharCode(...bytes.subarray(i,i+16384));return 'data:'+mime+';base64,'+btoa(str)}
+function frag(hash){try{return decodeURIComponent(hash.replace(/^#/,''))}catch{return hash.slice(1)}}
+async function build(o,report,signal){
+  const local=!!o.files;const fileMap=new Map((o.files||[]).map(f=>[localKey(f),f])),pages=[],visited=new Set(),queued=new Set(),issues=[],images=new Map();let consumed=0;
+  const note=message=>{if(issues.length<200)issues.push(message)};
+  const check=()=>{if(signal.aborted)throw Error('已停止擷取。')};
+  if(local&&fileMap.size!==o.files.length)throw Error('選取的檔案有重複路徑，請改用資料夾匯入。');
+  function account(n){consumed+=n;if(consumed>24*MiB)throw Error('已達整次讀取上限。請減少頁數或取消內嵌圖片。')}
+  const localUrls=[...fileMap.keys()].filter(s=>/\.x?html?$/i.test(s));
+  const start=local?localUrls[0]:urlOf(o.start)?.href;
+  if(!start)throw Error(local?'請選取至少一個 HTML 檔。':'請輸入完整的 http 或 https 網址。');
+  const origin=new URL(start).origin;
+  async function load(url,limit,kind){
+    check();
+    if(consumed>=24*MiB)throw Error('已達整次讀取上限。');
+    if(local){
+      const f=fileMap.get(url);if(!f)throw Error('未匯入檔案');
+      if(f.size>limit)throw Error('檔案超過大小限制');
+      account(f.size);return {bytes:new Uint8Array(await f.arrayBuffer()),url,type:f.type};
+    }
+    if(new URL(url).origin!==origin)throw Error('跨站來源');
+    const timer=new AbortController();const cancel=()=>timer.abort();signal.addEventListener('abort',cancel,{once:true});const timeout=setTimeout(cancel,9000);
+    try{
+      const r=await fetch(url,{signal:timer.signal,credentials:'omit',referrerPolicy:'no-referrer',redirect:'error'});
+      if(!r.ok)throw Error('HTTP '+r.status);
+      const type=r.headers.get('content-type')||'';
+      if(kind==='html'&&type&&!/text\/html|application\/xhtml\+xml/i.test(type))throw Error('來源並非 HTML');
+      if(Number(r.headers.get('content-length'))>limit)throw Error('檔案超過大小限制');
+      const reader=r.body.getReader(),parts=[];let size=0;
+      try{while(true){const x=await reader.read();if(x.done)break;size+=x.value.length;account(x.value.length);if(size>limit)throw Error('檔案超過大小限制');parts.push(x.value)}}finally{await reader.cancel().catch(()=>{})}
+      const bytes=new Uint8Array(size);let offset=0;for(const part of parts){bytes.set(part,offset);offset+=part.length}return {bytes,url,type};
+    } catch(e){check();if(e instanceof TypeError||timer.signal.aborted)throw Error('無法讀取；請檢查網址、跨來源授權、重新導向或逾時。');throw e}
+    finally{clearTimeout(timeout);signal.removeEventListener('abort',cancel)}
+  }
+  const queue=(local?localUrls.slice(0,o.max):[key(start)]).map(url=>({url,level:0}));queue.forEach(x=>queued.add(x.url));
+  if(local&&localUrls.length>o.max)note('已依頁數上限略過 '+(localUrls.length-o.max)+' 頁。');
+  for(let i=0;i<queue.length&&pages.length<o.max;i++){
+    check();const {url,level}=queue[i];if(visited.has(url))continue;visited.add(url);
+    report('正在讀取第 '+(pages.length+1)+' 頁…');
+    let page;try{const f=await load(url,2*MiB,'html');page=parsePage(decode(f.bytes,o.charset,f.type),url)}catch(e){check();if(!local&&i===0)throw e;note(url+'：'+e.message);continue}
+    pages.push(page);
+    if(!local&&level<o.depth){
+      for(const a of page.content.querySelectorAll('a[href]')){
+        const u=urlOf(a.getAttribute('href'),page.base);
+        if(!u||u.origin!==origin||!u.pathname.includes(o.filter)||/\.(?:pdf|epub|jpe?g|png|gif|webp|zip|mp[34]|pdb)$/i.test(u.pathname))continue;
+        const target=key(u);
+        if(!queued.has(target)&&queue.length<o.max*3){queued.add(target);queue.push({url:target,level:level+1})}
+      }
+    }
+  }
+  if(!pages.length)throw Error('沒有可匯出的 HTML 頁面。');
+  const idx=new Map(pages.map((p,i)=>[p.url,'page-'+(i+1)]));
+  function anchor(id,name){return id+'--'+Array.from(name,c=>c.codePointAt(0).toString(16)).join('-')}
+  async function picture(raw,p){
+    if(!o.images||!raw)return '';
+    const u=urlOf(raw,p.base);const data=/^data:image\/(png|jpeg|gif|webp);base64,([A-Za-z0-9+/=\s]+)$/i.exec(raw);
+    if(!u&&!data)return '';const url=data?raw:key(u);
+    if(images.has(url))return images.get(url);
+    if(images.size>=120){note('圖片已達 120 張上限。');return ''}
+    let result='';
+    try{
+      let bytes;
+      if(data){if(data[2].length>1.4*MiB)throw Error('圖片超過大小限制');bytes=Uint8Array.from(atob(data[2]),c=>c.charCodeAt(0));if(bytes.length>MiB)throw Error('圖片超過大小限制');account(bytes.length)}
+      else{bytes=(await load(url,MiB,'image')).bytes}
+      const mime=imageType(bytes);if(!mime)throw Error('未支援的圖片內容');result=asData(bytes,mime);
+    }catch(e){check();note((data?'內嵌圖片':url)+'：'+e.message)}
+    images.set(url,result);return result;
+  }
+  let renderedBudget=0;
+  async function render(n,p,id,depth=0){
+    check();if(depth>150)return '';
+    if(n.nodeType===3)return esc(n.nodeValue);if(n.nodeType!==1)return '';
+    const tag=n.localName;if(ignore.has(tag))return '';
+    const name=n.getAttribute('id')||(tag==='a'&&n.getAttribute('name'));
+    const marker=name?' id="'+anchor(id,name)+'"':'';
+    if(tag==='img'){
+      const alt=n.getAttribute('alt')||'';
+      const src=await picture(n.getAttribute('src'),p);
+      if(!src)return esc(alt);
+      renderedBudget+=src.length;if(renderedBudget>36*MiB)throw Error('合訂本圖片總量過大。請縮小來源或關閉圖片。');
+      return '<img'+marker+' alt="'+esc(alt)+'" src="'+src+'">';
+    }
+    const child=[];for(const el of n.childNodes)child.push(await render(el,p,id,depth+1));
+    if(!allowed.has(tag))return (name?'<span'+marker+'></span>':'')+child.join('');
+    let attr=marker;
+    if(tag==='a'&&n.hasAttribute('href')){
+      const u=urlOf(n.getAttribute('href'),p.base);
+      if(u){const target=idx.get(key(u));const href=target?'#'+(u.hash?anchor(target,frag(u.hash)):target):(!local||u.origin!==origin?u.href:'');if(href)attr+=' href="'+esc(href)+'"'}
+    }
+    if(tag==='th'||tag==='td')for(const k of ['colspan','rowspan'])if(/^\d{1,2}$/.test(n.getAttribute(k)||''))attr+=' '+k+'="'+n.getAttribute(k)+'"';
+    if(tag==='ol'&&/^-?\d{1,8}$/.test(n.getAttribute('start')||''))attr+=' start="'+n.getAttribute('start')+'"';
+    return '<'+tag+attr+'>'+child.join('')+(['br','hr'].includes(tag)?'':'</'+tag+'>');
+  }
+  const sections=[],toc=[];
+  for(const p of pages){const id=idx.get(p.url);report('正在編排：'+p.title);toc.push('<li><a href="#'+id+'">'+esc(p.title)+'</a></li>');const content=[];for(const n of p.content.childNodes)content.push(await render(n,p,id));sections.push('<article id="'+id+'"><a href="#contents">回目錄</a><h2>'+esc(p.title)+'</h2>'+content.join('')+'</article>')}
+  const style='body{max-width:48rem;margin:auto;padding:1rem;color:#193a33;font:1.08rem/1.75 system-ui,sans-serif;overflow-wrap:anywhere}article{margin:2rem 0;padding-top:1rem;border-top:1px solid #cbd6cd}a{color:#185d53}img{max-width:100%;height:auto}table{border-collapse:collapse}td,th{padding:.3em;border:1px solid #bbb}pre{white-space:pre-wrap}';
+  return {html:'<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(o.title)+'</title><style>'+style+'</style><main><h1>'+esc(o.title)+'</h1><nav id="contents"><h2>目錄</h2><ol>'+toc.join('')+'</ol></nav>'+sections.join('')+'</main></html>',issues,pages:pages.length};
+}
+get('stop').onclick=()=>run?.abort();
+get('go').onclick=async()=>{
+  if(run)return;invalidate();const o={files:get('mode').value==='local'?files:null,start:get('url').value.trim(),title:get('title').value.trim()||'離線閱讀合訂本',depth:Number(get('depth').value),max:Number(get('max').value),filter:get('filter').value.trim(),images:get('img').checked,charset:get('charset').value};
+  if(!Number.isInteger(o.max)||o.max<1||o.max>100||!Number.isInteger(o.depth)||o.depth<0||o.depth>5){get('status').textContent='頁數範圍為 1～100，連結深度範圍為 0～5。';return}
+  run=new AbortController();const controls=document.querySelectorAll('.capture-workspace input,.capture-workspace select,#cap-go');controls.forEach(c=>c.disabled=true);get('stop').hidden=false;
+  try{const result=await build(o,s=>get('status').textContent=s,run.signal);
+    downloadUrl=URL.createObjectURL(new Blob([result.html],{type:'text/html;charset=utf-8'}));const a=get('download');a.href=downloadUrl;a.download=o.title.replace(/[<>:"/\\|?*]/g,'_')+'.html';a.hidden=false;get('status').textContent='已收錄 '+result.pages+' 頁，可以下載。';get('log').textContent=result.issues.join('\n');get('details').hidden=!result.issues.length;
+  }catch(e){get('status').textContent=e.message}finally{controls.forEach(c=>c.disabled=false);get('stop').hidden=true;run=null}
+};
+})();
+</script>
+</section>

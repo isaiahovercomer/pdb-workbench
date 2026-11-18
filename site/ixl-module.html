@@ -1,0 +1,222 @@
+<div id="ixl-editor" class="ixle">
+<style>
+.ixle{color:#173c35}.ixle .ix-actions{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;margin:12px 0}.ixle button,.ixle .ix-file{background:#fff;border:1px solid #bccdc3;border-radius:7px;color:#20463b;cursor:pointer;font:inherit;padding:.4rem .8rem}.ixle .ix-save{background:#174a3c;color:white}.ixle .ix-book{width:min(100%,22rem)}.ixle details{background:#fff;border:1px solid #d1dacf;border-radius:10px;margin:8px 0;padding:10px 14px}.ixle summary{font-weight:700;cursor:pointer}.ixle .ix-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,235px),1fr));gap:10px 16px;margin-top:12px}.ixle .ix-grid label{display:grid;align-content:start;gap:3px;margin:0;font-size:.9rem}.ixle input,.ixle select,.ixle textarea{max-width:100%;width:100%;box-sizing:border-box;font:inherit}.ixle textarea{min-height:4.2rem}.ixle .ix-raw{min-height:14rem;font-family:monospace}.ixle .ix-status{min-height:1.4em}.ixle .ix-file input{max-width:16em}.ixle .ix-note{font-size:.9rem;color:#52685a}.ixle .ix-wide{grid-column:1/-1}
+</style>
+<h2>批次轉檔專案</h2>
+<p>每本書各自設定來源與輸出位置。下載 IXL 後，可在 PDB 轉檔工具 開啟，或交由 PDB 轉檔引擎 批次轉檔。</p>
+<div class="ix-actions"><label class="ix-file">匯入 IXL <input id="ix-file" type="file" accept=".ixl,.xml"></label><button type="button" class="ix-save" id="ix-save">下載整份 IXL</button></div>
+<div class="ix-actions"><label>編輯書籍 <select class="ix-book" id="ix-book"></select></label><button id="ix-add" type="button">新增書籍</button><button id="ix-copy" type="button">複製</button><button id="ix-up" type="button">上移</button><button id="ix-down" type="button">下移</button><button id="ix-del" type="button">移除書籍</button></div>
+<div id="ix-fields"></div>
+<details id="ix-raw-box"><summary>完整 IXL 原始碼</summary><p class="ix-note">可直接編輯專案 XML，包括 Cookie、外部文件對照及其他原廠擴充設定。有密碼的專案會在 XML 中保存密碼。</p><textarea class="ix-raw" id="ix-raw" aria-label="完整專案 XML" spellcheck="false"></textarea><div class="ix-actions"><button type="button" id="ix-apply">套用 XML</button><button type="button" id="ix-reset">重新載入目前設定</button></div></details>
+<p role="status" aria-live="polite" class="ix-status" id="ix-status"></p>
+</div>
+<script>
+(()=>{
+'use strict';
+const root=document.getElementById('ixl-editor');
+const el=id=>root.querySelector('#ix-'+id);
+const yn='yes|no',ie='include|exclude',ad='allow|disallow';
+const names={yes:'是',no:'否',include:'收錄',exclude:'排除',allow:'允許',disallow:'禁止',keep:'保留',ignore:'忽略',IgnoreBody:'忽略頁面本體',IgnoreBDP:'忽略本體、區塊及段落',none:'無',lossy:'僅有損來源',all:'全部',hourly:'每小時',daily:'每日',weekly:'每週',monthly:'每月',once:'一次',every:'固定間隔',only:'指定時段',Mon:'週一',Tue:'週二',Wed:'週三',Thu:'週四',Fri:'週五',Sat:'週六',Sun:'週日',soft:'可跨頁捲動及翻頁',hard:'可跨頁翻頁',rigid:'限本頁',KeepAll:'全部保留',RemoveAll:'全部移除',KeepIfSpaceTab:'下行有縮排時保留'};
+const defs=[
+['來源與書名','',[
+['Destination/Title','書名'],['Source/Sources/Path','來源網址或檔案路徑（每行一項，依序收錄）','lines'],['Destination/Files/Path','輸出 PDB 路徑（每行一項）','lines'],['Entry/Groups/Group','所屬群組（每行一路徑，如 /詩歌/詩集）','lines'],['Source/CharSet','來源預設編碼'],['DocumentOptions/CharSet','輸出文字編碼'],['Destination/HotSync/Path','HotSync 目的地（每行一項）','lines'],['Destination/ActiveSync/Path','ActiveSync 目的地（每行一項）','lines']]],
+['連結與擷取','LinkOptions',[
+['MaximumDepth','連結深度','int'],['FollowOffsite','跟隨跨站連結',yn],['MaximumOffsiteDepth','跨站深度','int'],['SubDirOnly','限來源子目錄',yn],['UnresolvedDetail','未收錄頁面的網址',ie],['Include/Pattern','收錄規則（每行一項，如 WC::*/songs/*）','lines'],['Exclude/Pattern','排除規則（每行一項，如 WC::*.zip）','lines']]],
+['圖片與壓縮','ImageOptions',[
+['Images','圖片',ie],['AltText','圖片替代文字',ie],['ResizeLargeImages','縮小大型圖片',yn],['MaximumWidth','最大寬度（像素）','positive'],['MaximumHeight','最大高度（像素）','positive'],['ImproveContrast','增強對比',yn],['Dither','色彩抖動',yn],['Compress','壓縮圖片',yn],['LossyLevel','有損壓縮範圍','none|lossy|200|100|50|20|10|all'],['LossyQuality','有損品質（1–100）','quality'],...[1,2,4,8,16].map(n=>['BitDepth'+n,n+' 位元色深',ie])]],
+['表格與版面','',[
+...[['IgnoreTables','忽略表格'],['AddSeparators','加入表格分隔線'],['UseMinimumDepth','設定最小表格深度'],['UnfoldFullPageTables','展開整頁表格'],['UseMaximumBottomReach','限制表格底部延伸'],['IgnorePixelWidths','忽略像素寬度']].map(([p,l])=>['TableOptions/'+p,l,yn]),['TableOptions/MinimumDepth','最小表格深度','positive'],['TableOptions/MaximumBottomReach','最大底部延伸','positive'],['ColorOptions/BackgroundColors','背景色','keep|ignore|IgnoreBody'],['ColorOptions/TextColors','文字色彩','keep|ignore'],['MarginOptions/LeftRightMargins','左右邊界','keep|ignore|IgnoreBody|IgnoreBDP'],['MarginOptions/LeftRightPadding','左右內距','keep|ignore|IgnoreBody|IgnoreBDP']]],
+['文字與導覽','',[
+['TextOptions/PreUseMonospaceFont','預格式文字使用等寬字',yn],['TextOptions/PreSingleLineBreaks','預格式文字單一換行','KeepAll|RemoveAll|KeepIfSpaceTab'],['TextOptions/ProcessLineBreaks','處理純文字換行',yn],['TextOptions/ConvertSingleLineBreaks','移除純文字單一換行',yn],['TextOptions/Preformatted','將純文字視為預格式文字',yn],['TextOptions/UseMonospaceFont','純文字使用等寬字',yn],['TextOptions/MonospaceFontSize','等寬字大小','positive'],['TextOptions/TabStopWidth','定位寬度','positive'],['DocumentOptions/PageBounds','跨頁行為','rigid|hard|soft'],['DocumentOptions/UseDefaultCategory','指定閱讀器分類',yn],['DocumentOptions/DefaultCategory','閱讀器分類'],['DocumentOptions/HomePageNumber','首頁頁碼','positive'],['DocumentOptions/OpenHomePageOnDateChange','文件更新後開啟首頁',yn]]],
+['書籤','Bookmarks/Document',[
+['NamedAnchorType','具名錨點類型','WordWebPage|all|filtered'],['UseFile','從 HTML 書籤檔建立',yn],['Path','書籤 HTML 檔案'],['UseNamedAnchors','將具名錨點加入書籤',yn],['UseIncludeFilter','啟用收錄字首',yn],['IncludePrefix','收錄字首'],['UseExcludeFilter','啟用排除字首',yn],['ExcludePrefix','排除字首']]],
+['作者與出版資訊','Messages',[
+['Title','完整書名'],['Version','版本'],['AuthorName','作者'],['AuthorContact','作者聯絡方式'],['AuthorNotes','作者說明'],['PublisherName','出版者'],['PublisherContact','出版者聯絡方式'],['PublisherNotes','出版說明'],['Copyright','著作權聲明'],['Notes','文件說明']]],
+['文件權限','SecurityOptions',[
+['Convert','再轉檔',ad],['CopyBeam','複製或傳送檔案',ad],['CopyAndPaste','複製與貼上',ad],['Modify','修改',ad],['Print','列印',ad],['Expiration/Expires','啟用到期日',yn],['Expiration/Date','到期日（YYYYMMDD）','date8'],['Password/Require','閱讀時要求密碼',yn],['Password/Password','文件密碼（會寫入 IXL 明文）','password'],['RegistrationCode/Require','閱讀時要求註冊碼',yn],['RegistrationCode/DocumentID','註冊用文件識別碼']]],
+['書間連結與對照檔','Targets',[
+['Export','匯出可連結的錨點','none|all|ByFile'],['Lookup','書間連結查找方式','ByName|ByID|ByOffset'],['ByFile','匯出錨點清單檔案'],['GenerateMapFile','產生對照檔',yn],['MapFile','對照檔路徑']]],
+];
+const scheduleFields=[['Frequency','頻率','once|hourly|daily|weekly|monthly'],['Time','執行時間（HHMM，每小時排程填 0–59）','timecode'],['Weekday','每週執行日','Mon|Tue|Wed|Thu|Fri|Sat|Sun'],['Day','每月執行日（1–31）','day'],['Type','執行規則','every|only'],['Every','間隔數','positive'],['Only','指定時段（例如 Mon,Wed,Fri）'],['StartDate','開始日期時間（單次排程必填，YYYY/MM/DD HH:MM:SS）'],['EndDate','結束日期時間（同上）'],['Disable','停用此排程',yn]];
+const parser=new DOMParser(), serial=new XMLSerializer();
+let tree,selected,filename='轉檔專案.ixl',dirty=false,rawDirty=false;
+function sons(node,tag){return node?Array.from(node.children).filter(n=>n.tagName===tag):[];}
+function path(node,key,create=false){
+ for(const tag of key.split('/').filter(Boolean)){
+  let next=sons(node,tag)[0];
+  if(!next&&create){next=tree.createElement(tag);node.append(next);}
+  if(!next)return null;
+  node=next;
+ }
+ return node;
+}
+function setText(node,key,value){path(node,key,true).textContent=value;}
+function books(){return sons(tree.documentElement,'iSiloXDocument');}
+function notify(s){el('status').textContent=s;}
+function readXml(s){
+ if(/<!DOCTYPE\b/i.test(s))throw Error('IXL 不支援 DTD。');
+ const xml=parser.parseFromString(s,'application/xml');
+ if(xml.documentElement.tagName!=='iSiloXDocumentList'||xml.getElementsByTagName('parsererror').length)throw Error('請使用有效的 IXL 專案 XML。');
+ if(!sons(xml.documentElement,'iSiloXDocument').length)throw Error('專案至少需要一本書。');
+ return xml;
+}
+function refreshBooks(){
+ const all=books();
+ el('book').replaceChildren(...all.map((b,i)=>new Option((i+1)+' · '+(path(b,'Destination/Title')?.textContent||'未命名書籍'),String(i))));
+ el('book').value=String(all.indexOf(selected));el('up').disabled=selected===all[0];el('down').disabled=selected===all.at(-1);el('del').disabled=all.length<2;
+}
+function registerGroup(label){
+ const parts=label.match(/(?:\/\/|[^/])+/g)||[];
+ let node=path(tree.documentElement,'Registry/Groups',true);
+ // Registry precedes the document list in the official IXL layout.
+ const registry=node.parentNode;
+ if(books()[0].compareDocumentPosition(registry)&Node.DOCUMENT_POSITION_FOLLOWING)tree.documentElement.insertBefore(registry,books()[0]);
+ parts.forEach((part,i)=>{
+  const branch=i+1<parts.length;
+  let group=Array.from(node.children).find(g=>['Group','Groups'].includes(g.tagName)&&g.getAttribute('name')===part);
+  if(group&&branch&&group.tagName==='Group'){
+   const replacement=tree.createElement('Groups');
+   for(const a of group.attributes)replacement.setAttribute(a.name,a.value);
+   while(group.firstChild)replacement.append(group.firstChild);
+   group.replaceWith(replacement);group=replacement;
+  }
+  if(!group){group=tree.createElement(branch?'Groups':'Group');group.setAttribute('name',part);group.setAttribute('checked','yes');node.append(group);}
+  node=group;
+ });
+}
+function values(node,key){
+ const parts=key.split('/'),tag=parts.pop();return sons(path(node,parts.join('/')),tag);
+}
+const numeric={int:[0,65535],positive:[1,65535],quality:[1,100],day:[1,31]};
+function field(container,node,prefix,[key,label,type='text']){
+ const full=[prefix,key].filter(Boolean).join('/');
+ const holder=document.createElement('label'),caption=document.createElement('span');
+ caption.textContent=label;holder.append(caption);container.append(holder);
+ const list=type==='lines',enumType=type.includes('|'),attribute=enumType||Object.hasOwn(numeric,type)||['timecode','date8'].includes(type);
+ let input=document.createElement(enumType?'select':list?'textarea':'input');
+ input.dataset.path=full;
+ const original=values(node,full);
+ const val=list?original.map(x=>x.textContent).join('\n'):original[0]?(attribute?original[0].getAttribute('value'):original[0].textContent)||'':'';
+ if(enumType){
+  input.add(new Option('依原廠預設',''));
+  for(const choice of type.split('|'))input.add(new Option(names[choice]||choice,choice));
+  if(val&&!Array.from(input.options).some(o=>o.value===val))input.add(new Option(val,val));
+ }else if(!list){
+  input.type=type==='password'?'password':Object.hasOwn(numeric,type)?'number':'text';
+  if(type==='password')input.autocomplete='new-password';
+  if(Object.hasOwn(numeric,type)){[input.min,input.max]=numeric[type];input.step='1';}
+  if(type==='date8')input.pattern='[0-9]{8}';
+ }
+ if(list){input.rows=3;holder.classList.add('ix-wide');}
+ input.value=val;holder.append(input);
+ input.oninput=()=>{
+  const s=input.value;
+  if(!input.checkValidity())return;
+  if(list){
+   const items=s.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+   const prev=values(node,full),parts=full.split('/'),tag=parts.pop();
+   items.forEach((item,i)=>{
+    let target=prev[i];if(!target){target=tree.createElement(tag);path(node,parts.join('/'),true).append(target);}
+    target.textContent=item;
+   });
+   prev.slice(items.length).forEach(x=>x.remove());
+  }else if(!s)path(node,full)?.remove();
+  else if(attribute)path(node,full,true).setAttribute('value',s);
+  else setText(node,full,s);
+  dirty=true;notify('目前的變更尚未下載。');
+  if(full==='Destination/Title')refreshBooks();
+  if(el('raw-box').open&&!rawDirty)el('raw').value=xmlString();
+ };
+}
+function section(title,open=false){
+ const d=document.createElement('details'),s=document.createElement('summary'),grid=document.createElement('div');
+ d.open=open;s.textContent=title;grid.className='ix-grid';d.append(s,grid);el('fields').append(d);return {d,grid};
+}
+function makeButton(label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=fn;return b;}
+function render(){
+ el('fields').replaceChildren();refreshBooks();
+ defs.forEach(([title,prefix,fields],i)=>{const {grid}=section(title,i===0);fields.forEach(f=>field(grid,selected,prefix,f));});
+ const {d,grid}=section('轉檔排程');
+ field(grid,selected,'Scheduling',['Disable','停用本書所有排程',yn]);
+ const note=document.createElement('p');note.className='ix-note';note.textContent='排程隨 IXL 保存，由原廠排程功能執行。';d.append(note);
+ const wrap=document.createElement('div');d.append(wrap);
+ function draw(){
+  wrap.replaceChildren();values(selected,'Scheduling/Schedules/Schedule').forEach((n,i)=>{
+   const item=document.createElement('details'),title=document.createElement('summary'),g=document.createElement('div');
+   title.textContent='排程 '+(i+1);g.className='ix-grid';item.append(title,g);scheduleFields.forEach(f=>field(g,n,'',f));item.append(makeButton('移除此排程',()=>{if(!guard())return;n.remove();dirty=true;draw();}));wrap.append(item);
+  });
+ }
+ draw();d.append(makeButton('新增排程',()=>{if(!guard())return;const n=tree.createElement('Schedule');path(selected,'Scheduling/Schedules',true).append(n);path(n,'Frequency',true).setAttribute('value','daily');dirty=true;draw();wrap.lastChild.open=true;}));
+ if(el('raw-box').open&&!rawDirty)el('raw').value=xmlString();
+}
+function xmlString(){return '<?xml version="1.0" encoding="UTF-8"?>\n'+serial.serializeToString(tree).replace(/^<\?xml[^?]*\?>\s*/,'');}
+function guard(){
+ if(rawDirty){notify('請先套用原始碼，或按「重新載入目前設定」捨棄原始碼變更。');return false;}
+ const bad=el('fields').querySelector(':invalid');if(bad){for(let parent=bad.parentElement;parent&&parent!==root;parent=parent.parentElement){if(parent.tagName==='DETAILS')parent.open=true;}bad.reportValidity();return false;}return true;
+}
+function adopt(xml,bookIndex=0){tree=xml;selected=books()[Math.min(bookIndex,books().length-1)];rawDirty=false;el('fields').inert=false;render();}
+function fresh(){
+ const b=tree.createElement('iSiloXDocument');setText(b,'Destination/Title','新書');setText(b,'DocumentOptions/CharSet','UTF-8');return b;
+}
+function syncGroups(){
+ for(const b of books())for(const g of values(b,'Entry/Groups/Group'))if(g.textContent.trim())registerGroup(g.textContent.trim());
+}
+function validate(){
+ const destinations=new Set();
+ const xdate=/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/;
+ for(const [i,b] of books().entries()){
+  const title=path(b,'Destination/Title')?.textContent.trim()||'第 '+(i+1)+' 本';
+  if(!values(b,'Source/Sources/Path').some(e=>e.textContent.trim()))throw Error(title+'缺少來源。');
+  if(!['Files','HotSync','ActiveSync'].some(t=>values(b,'Destination/'+t+'/Path').some(e=>e.textContent.trim())))throw Error(title+'缺少輸出位置。');
+  for(const schedule of values(b,'Scheduling/Schedules/Schedule')){
+    const frequency=path(schedule,'Frequency')?.getAttribute('value');
+    const start=path(schedule,'StartDate')?.textContent;
+    const end=path(schedule,'EndDate')?.textContent;
+    if((frequency==='once'&&!start)||(start&&!xdate.test(start))||(end&&!xdate.test(end)))throw Error(title+'的排程日期請使用 YYYY/MM/DD HH:MM:SS。');
+    const time=path(schedule,'Time')?.getAttribute('value');
+    if(time&&(frequency==='hourly'? !/^\d{1,2}$/.test(time)||Number(time)>59 : !/^(?:[01]\d|2[0-3])[0-5]\d$/.test(time)))throw Error(title+'的排程時間格式錯誤。');
+  }
+  for(const dest of values(b,'Destination/Files/Path')){
+    const key=dest.textContent.trim().replaceAll('/','\\').toLowerCase();
+    if(destinations.has(key))throw Error('輸出路徑重複，請分別指定各本書的 PDB 路徑。');
+    destinations.add(key);
+  }
+ }
+}
+function download(){
+ if(!guard())return;
+ try{validate();syncGroups();const url=URL.createObjectURL(new Blob([xmlString()],{type:'application/xml;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);dirty=false;notify('已匯出 '+books().length+' 本書的轉檔設定。');}
+ catch(e){notify(e.message);}
+}
+el('file').onchange=async ev=>{
+ const f=ev.target.files[0];if(!f)return;
+ try{
+  if((dirty||rawDirty)&&!confirm('以匯入檔案取代目前尚未下載的編輯內容？'))return;
+  const bytes=new Uint8Array(await f.arrayBuffer());
+  let encoding=bytes[0]===255&&bytes[1]===254?'utf-16le':bytes[0]===254&&bytes[1]===255?'utf-16be':bytes[0]===60&&bytes[1]===0?'utf-16le':bytes[0]===0&&bytes[1]===60?'utf-16be':null;
+  if(!encoding){const lead=new TextDecoder('windows-1252').decode(bytes.slice(0,240));encoding=lead.match(/^\s*(?:ï»¿)?<\?xml[^?]*\bencoding\s*=\s*["']([^"']+)["']/i)?.[1]||'utf-8';}
+  const doc=readXml(new TextDecoder(encoding,{fatal:true}).decode(bytes));adopt(doc);dirty=false;filename=f.name.replace(/(?:\.ixl|\.xml)?$/i,'.ixl');notify('已載入 '+books().length+' 本書。');
+ }catch(e){notify('匯入失敗。'+e.message);}finally{ev.target.value='';}
+};
+el('save').onclick=download;
+el('book').onchange=()=>{if(!guard()){refreshBooks();return;}selected=books()[Number(el('book').value)];render();};
+function changeBook(action){
+ if(!guard())return;
+ const all=books(),i=all.indexOf(selected);
+ if(action==='add'||action==='copy'){
+  const b=action==='copy'?selected.cloneNode(true):fresh();
+  if(action==='copy'){setText(b,'Destination/Title',(path(b,'Destination/Title')?.textContent||'書籍')+' 副本');values(b,'Destination/Files/Path').forEach(x=>{x.textContent=x.textContent.replace(/(\.pdb)?$/i,'-copy.pdb');});}
+  selected.after(b);selected=b;
+ }else if(action==='del'&&all.length>1){if(!confirm('移除此書的轉檔設定？'))return;selected.remove();selected=all[i?i-1:1];}
+ else if(action==='up'&&i>0)all[i-1].before(selected);
+ else if(action==='down'&&i<all.length-1)all[i+1].after(selected);
+ dirty=true;render();notify('目前共 '+books().length+' 本。');
+}
+for(const action of ['add','copy','up','down','del'])el(action).onclick=()=>changeBook(action);
+el('raw-box').ontoggle=()=>{if(el('raw-box').open&&!rawDirty)el('raw').value=xmlString();};
+el('raw').oninput=()=>{rawDirty=true;el('fields').inert=true;notify('原始碼已修改，請按「套用 XML」。');};
+el('reset').onclick=()=>{el('raw').value=xmlString();rawDirty=false;el('fields').inert=false;notify('已重新載入設定。');};
+el('apply').onclick=()=>{try{if(!rawDirty){el('raw').value=xmlString();return;}adopt(readXml(el('raw').value),books().indexOf(selected));el('fields').inert=false;dirty=true;notify('已套用 XML。');}catch(e){notify(e.message);}};
+adopt(readXml('<iSiloXDocumentList><iSiloXDocument><Destination><Title>新書</Title></Destination><DocumentOptions><CharSet>UTF-8</CharSet></DocumentOptions></iSiloXDocument></iSiloXDocumentList>'));
+})();
+</script>
