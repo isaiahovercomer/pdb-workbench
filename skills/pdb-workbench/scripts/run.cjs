@@ -29,10 +29,12 @@ try {
     if (!['utf-8','big5'].includes(encoding)) throw Error('輸出編碼可選 utf-8 或 big5');
     const source = decodeText(fs.readFileSync(input), 'auto');
     save(output, writeBook(title, source, encoding, true));
+  } else if (command === 'export' && args.length>=2 && args.length<=3) {
+    require('./export.cjs').exportBook(args[0],args[1],Number(args[2]||0)).catch(error=>{console.error(error.message);process.exitCode=1});
   } else if (command === 'ixl' && args.length >= 4) {
     const [output, title, destination, ...sources] = args;
     save(output, createProject(title, sources.join('\n'), destination, '0', 'include'));
   } else {
-    throw Error('用法請見 SKILL.md，可用命令為 txt、palmdoc、inspect、ixl。');
+    throw Error('用法請見 SKILL.md，可用命令為 txt、batch-txt、export、palmdoc、inspect、ixl。');
   }
 } catch (error) { console.error(error.message); process.exitCode=1; }

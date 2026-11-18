@@ -7,3 +7,11 @@
 - 修改網頁或 Windows 工作台後，執行 `python site/assemble.py` 可重建網站、下載包及技能核心。原廠 PDB 轉檔引擎 由使用者另行選取。
 
 在網頁選「PDB 轉 TXT」可讀取 SDoc 與 PalmDOC，直接下載全書 UTF-8 純文字。Muse 使用 `node scripts/run.cjs txt "來源.pdb" "全書.txt"`。圖文 PDB（SDoc / SilX）的正文直接在瀏覽器或 Node.js 解碼，毋須另外安裝閱讀器。
+
+## 閱讀、批次與匯出
+
+在「PDB 轉 TXT → 批次轉 TXT」選取多個 PDB、PRC 或整個資料夾。下載的 ZIP 包含各書的 UTF-8 TXT 及逐檔結果。可讀格式包括 PalmDOC、支援的 SDoc 以及 Palm 備忘錄、通訊錄、行事曆與待辦事項。
+
+開啟單本後可下載 HTML 或 EPUB。SDoc 匯出會採用可辨識的原書目錄，並將可解碼的灰階圖片列在附錄。書架可整批匯入，依書名、章名與正文搜尋並跳至命中位置。
+
+「詩歌與書報」支援逐行經文、和弦移調，以及 HTML、EPUB、Excel、ChordPro 和 Plucker PDB 匯出。Muse 可使用相同的匯出格式、以來源清單重新製書，或將網頁合訂為離線 HTML。命令與範例見 [Muse 使用說明](skills/pdb-workbench/SKILL.md)。

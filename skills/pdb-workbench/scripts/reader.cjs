@@ -189,7 +189,66 @@ function extractSdoc(bytes, db) {
   return out;
 }
 
+function palmRecords(bytes, db) {
+  const encoder=new TextEncoder(), blocks=[];
+  let total=0;
+  function add(item){
+    const data=typeof item==='string'?encoder.encode(item):item;
+    total+=data.length;
+    if(total>maxBytes)throw Error('匯出的資料量超過上限。');
+    blocks.push(data);
+  }
+  function date(value){
+    if(value===65535)return '';
+    return (1904+(value>>>9))+'-'+String((value>>5)&15).padStart(2,'0')+'-'+String(value&31).padStart(2,'0');
+  }
+  for(const [index,entry] of db.records.entries()) {
+    if((bytes[78+index*8+4]&128) || entry.start===entry.end)continue;
+    const data=bytes.subarray(entry.start,entry.end);
+    let pos=0;
+    function take(n){
+      if(n>data.length-pos)throw Error('Palm 記錄長度錯誤：'+(index+1));
+      const part=data.subarray(pos,pos+n);pos+=n;return part;
+    }
+    const u8=()=>take(1)[0];
+    const u16=()=>{const b=take(2);return b[0]*256+b[1]};
+    function string(){
+      const end=data.indexOf(0,pos);
+      if(end<0)throw Error('Palm 文字記錄缺少結尾。');
+      const field=take(end-pos);pos++;return field;
+    }
+    function field(label,value){add(label+': ');add(value);add('\n')}
+    if(blocks.length)add('\n');
+    if(db.creator==='memo'){add(string());add('\n')}
+    if(db.creator==='todo'){
+      const due=date(u16()),flags=u8();field('Completed',flags&128?'yes':'no');field('Priority',String(flags&127));
+      if(due)field('Due',due);field('Task',string());field('Note',string());
+    }
+    if(db.creator==='addr'){
+      const phone=take(4), fields=take(4);
+      const mask=fields[1]*65536+fields[2]*256+fields[3];take(1);
+      const names=['Last name','First name','Company','Phone 1','Phone 2','Phone 3','Phone 4','Phone 5','Address','City','State','ZIP','Country','Title','Custom 1','Custom 2','Custom 3','Custom 4','Note'];
+      const types=['Work','Home','Fax','Other','Email','Main','Pager','Mobile'];
+      const labels=(phone[1]<<16)|(phone[2]<<8)|phone[3];
+      for(let i=0;i<names.length;i++)if(mask&(1<<i))field(i>=3&&i<8?types[(labels>>((i-3)*4))&15]||names[i]:names[i],string());
+    }
+    if(db.creator==='date'){
+      const clock=()=>{const h=u8(),m=u8();return h===255?'':String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')};
+      const start=clock(),end=clock();field('Date',date(u16()));if(start)field('Time',start+' - '+end);
+      const flags=u8();take(1);
+      if(flags&64){const amount=u8(),unit=u8();field('Alarm',amount+' '+(['minutes','hours','days'][unit]||unit))}
+      if(flags&32){const kind=u8();take(1);const until=date(u16()),every=u8(),rule=u8(),week=u8();take(1);
+        field('Repeat',[kind,until,every,rule,week].join(' / '));}
+      if(flags&8){const n=u16();for(let i=0;i<n;i++)field('Except',date(u16()))}
+      if(flags&4)field('Event',string());if(flags&16)field('Note',string());
+    }
+  }
+  const result=new Uint8Array(total);let offset=0;
+  for(const b of blocks){result.set(b,offset);offset+=b.length}return result;
+}
+
   function extract(bytes,db){
+    if(db.type==="DATA")return palmRecords(bytes,db);
     if(db.type==="SDoc" && db.creator==="SilX") return extractSdoc(bytes,db);
     const head=db.records[0];
     if(!head||head.end-head.start<16)broken("PalmDOC 缺少完整的文件檔頭。");
@@ -210,6 +269,7 @@ function extractSdoc(bytes, db) {
   }
   function requireTextFormat(db){
     if(db.chained) broken("串接式記錄目錄目前僅支援結構檢視。");
+    if(!db.resource && db.type==="DATA" && ["memo","addr","date","todo"].includes(db.creator))return;
     if(!db.resource && db.type==="SDoc" && db.creator==="SilX") return;
     if(db.resource || db.type!=="TEXt" || db.creator!=="REAd"){
       broken("尚未支援正文轉檔："+db.type+" / "+db.creator);

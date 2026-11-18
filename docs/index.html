@@ -283,35 +283,16 @@ adopt(readXml('<iSiloXDocumentList><iSiloXDocument><Destination><Title>新書</T
 <label>正文或歌詞<textarea data-bk="body" class="bookLyrics" placeholder="可直接輸入文章，或把和弦寫在對應的歌詞前，如 [G]晨光照耀。"></textarea></label>
 <div class="bookActions"><button type="button" data-bk="lower">本章和弦降半音</button><button type="button" data-bk="raise">本章和弦升半音</button></div>
 <label>經文出處與附註<textarea data-bk="note" rows="3" placeholder="選填，每行一筆"></textarea></label>
-<details><summary>本章排版預覽</summary><div class="bookPreview" data-bk="preview"></div></details>
+<label>逐行經文與註腳<textarea data-bk="lineNotes" rows="2" placeholder="每行填寫歌詞行號與註腳，例如：2 | 詩一三三1"></textarea></label><details><summary>本章排版預覽</summary><div class="bookPreview" data-bk="preview"></div></details>
 <div class="bookActions"><button type="button" class="primary" data-bk="epub">下載 EPUB</button><button type="button" data-bk="html">下載單頁 HTML</button><button type="button" data-bk="excel">下載 Excel</button><button type="button" data-bk="cho">下載 ChordPro</button><button type="button" data-bk="palm">送至 PalmDOC 製作區</button><button type="button" data-bk="backup">儲存編輯檔</button></div>
+<details><summary>製作 Plucker PDB</summary><label>封面圖片（選填）<input data-bk="cover" type="file" accept="image/png,image/jpeg,image/webp"></label><label>封面最長邊<select data-bk="side"><option>160</option><option>240</option><option>320</option></select></label><label>灰階色深<select data-bk="bits"><option>4</option><option>2</option><option>1</option></select></label><label><input data-bk="compress" type="checkbox" checked> 使用 zlib 壓縮</label><button data-bk="plucker" type="button">下載 Plucker PDB</button></details>
 <small data-bk="status" role="status"></small></div>
 </div></div>
 <script>
 (()=>{
 const root=document.getElementById('songbookDesk'), ui=Object.fromEntries(Array.from(root.querySelectorAll('[data-bk]'),e=>[e.dataset.bk,e]));
-const blank=()=>({name:'',body:'',note:''}), key='pdb-songbook-draft-v1', enc=new TextEncoder();
-let book={title:'',author:'',chapters:[blank()]}, active=0;
-const heading=(c,i)=>c.name.trim()||'第 '+(i+1)+' 章';
-function safeXml(s){return Array.from(String(s),c=>{const n=c.codePointAt(0);return n===9||n===10||n===13||(n>=32&&n<=0xd7ff)||(n>=0xe000&&n<=0xfffd)||n>=0x10000?c:'�'}).join('').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));}
-function valid(b){return b&&typeof b.title==='string'&&typeof b.author==='string'&&Array.isArray(b.chapters)&&b.chapters.length>0&&b.chapters.length<=2000&&b.chapters.every(c=>c&&['name','body','note'].every(k=>typeof c[k]==='string'))}
-function message(t){ui.status.textContent=t}
-function store(){try{localStorage.setItem(key,JSON.stringify(book))}catch{message('瀏覽器未能保存草稿，請下載編輯檔備份。')}}
-function marked(line){
- const matches=[...line.matchAll(/\[([^\]\r\n]{1,32})\]/g)];if(!matches.length)return safeXml(line);
- const pieces=[safeXml(line.slice(0,matches[0].index))];matches.forEach((m,i)=>{const text=line.slice(m.index+m[0].length,matches[i+1]?.index??line.length);pieces.push('<span class="bookPair"><strong class="bookChord">'+safeXml(m[1])+'</strong><span>'+safeXml(text||'\u00a0')+'</span></span>')});return pieces.join('');
-}
-function chapter(c,i){return '<h2>'+safeXml(heading(c,i))+'</h2><div class="bookVerse">'+c.body.replace(/\r\n?/g,'\n').split('\n').map(marked).join('<br/>')+'</div>'+(c.note.trim()?'<p class="bookFoot">'+safeXml(c.note)+'</p>':'')}
-function updateIndex(){ui.list.replaceChildren(...book.chapters.map((c,i)=>new Option((i+1)+'. '+heading(c,i),String(i))));ui.list.selectedIndex=active;ui.up.disabled=active===0;ui.down.disabled=active===book.chapters.length-1;}
-function render(){ui.title.value=book.title;ui.author.value=book.author;const c=book.chapters[active];ui.name.value=c.name;ui.body.value=c.body;ui.note.value=c.note;updateIndex();ui.preview.innerHTML=chapter(c,active)}
-try{const draft=JSON.parse(localStorage.getItem(key));if(valid(draft))book=draft}catch{}
-for(const k of ['title','author','name','body','note'])ui[k].oninput=()=>{if(k==='title'||k==='author')book[k]=ui[k].value;else book.chapters[active][k]=ui[k].value;if(k==='name')updateIndex();ui.preview.innerHTML=chapter(book.chapters[active],active);message('');store()};
-ui.list.onchange=()=>{active=ui.list.selectedIndex;render()};
-ui.add.onclick=()=>{if(book.chapters.length>=2000)return message('每本最多 2,000 章。');book.chapters.splice(++active,0,blank());render();store();ui.name.focus()};
-for(const [k,d] of [['up',-1],['down',1]])ui[k].onclick=()=>{const next=active+d;if(next<0||next>=book.chapters.length)return;[book.chapters[active],book.chapters[next]]=[book.chapters[next],book.chapters[active]];active=next;render();store()};
-ui.remove.onclick=()=>{if(!confirm('移除「'+heading(book.chapters[active],active)+'」？'))return;book.chapters.splice(active,1);if(!book.chapters.length)book.chapters.push(blank());active=Math.min(active,book.chapters.length-1);render();store()};
-const bookCss='body{max-width:48em;margin:1em auto;padding:1em;font-family:serif;line-height:1.75;color:#213f38}h1,h2{line-height:1.4}.bookVerse,.bookFoot{white-space:pre-wrap;overflow-wrap:anywhere}.bookPair{display:inline-flex;flex-direction:column;vertical-align:bottom}.bookChord{font:bold .8em/1.25 monospace;color:#775020}.bookFoot{border-top:1px solid #ccc;padding-top:.7em}section{margin:2em 0;break-before:page}a{color:#17584c}';
-function htmlBook(b){return '<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+safeXml(b.title)+'</title><style>'+bookCss+'</style><main><h1>'+safeXml(b.title)+'</h1><p>'+safeXml(b.author)+'</p><nav id="toc"><h2>目錄</h2><ol>'+b.chapters.map((c,i)=>'<li><a href="#c'+i+'">'+safeXml(heading(c,i))+'</a></li>').join('')+'</ol></nav>'+b.chapters.map((c,i)=>'<section id="c'+i+'">'+chapter(c,i)+'<p><a href="#toc">回目錄</a></p></section>').join('')+'</main></html>'}
+const key='pdb-songbook-draft-v1', enc=new TextEncoder();
+
 const crcTable=Uint32Array.from({length:256},(_,i)=>{for(let j=0;j<8;j++)i=i&1?(i>>>1)^0xedb88320:i>>>1;return i>>>0});
 function zip(entries,mime='application/epub+zip'){
  const enc=new TextEncoder();
@@ -327,13 +308,43 @@ function zip(entries,mime='application/epub+zip'){
  const end=header(22);end.u32(0,0x06054b50);end.u16(8,entries.length);end.u16(10,entries.length);end.u32(12,centralSize);end.u32(16,offset);return new Blob([...files,...directory,end.data],{type:mime});
 }
 
+const blank=()=>({name:'',body:'',note:''});
+const heading=(c,i)=>c.name.trim()||'第 '+(i+1)+' 章';
+function safeXml(s){return Array.from(String(s),c=>{const n=c.codePointAt(0);return n===9||n===10||n===13||(n>=32&&n<=0xd7ff)||(n>=0xe000&&n<=0xfffd)||n>=0x10000?c:'�'}).join('').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));}
+function valid(b){return b&&typeof b.title==='string'&&typeof b.author==='string'&&Array.isArray(b.chapters)&&b.chapters.length>0&&b.chapters.length<=2000&&b.chapters.every(c=>c&&['name','body','note'].every(k=>typeof c[k]==='string'))}
+
+function marked(line){
+ const matches=[...line.matchAll(/\[([^\]\r\n]{1,32})\]/g)];if(!matches.length)return safeXml(line);
+ const pieces=[safeXml(line.slice(0,matches[0].index))];matches.forEach((m,i)=>{const text=line.slice(m.index+m[0].length,matches[i+1]?.index??line.length);pieces.push('<span class="bookPair"><strong class="bookChord">'+safeXml(m[1])+'</strong><span>'+safeXml(text||'\u00a0')+'</span></span>')});return pieces.join('');
+}
+function lineNotes(c) {
+ const notes=new Map();
+ for(const row of (c.lineNotes||'').split('\n')){
+   const match=row.match(/^\s*([1-9]\d*)\s*\|\s*(.+)$/);if(match){const index=Number(match[1]);notes.set(index,[notes.get(index),match[2]].filter(Boolean).join('；'))}
+ }
+ return notes;
+}
+function chapter(c,i){const notes=lineNotes(c);return '<h2>'+safeXml(heading(c,i))+'</h2><div class="bookVerse">'+c.body.replace(/\r\n?/g,'\n').split('\n').map((line,j)=>(c.literal?safeXml(line):marked(line))+(notes.has(j+1)?'<small>〔'+safeXml(notes.get(j+1))+'〕</small>':'')).join('<br/>')+'</div>'+(c.note.trim()?'<p class="bookFoot">'+safeXml(c.note)+'</p>':'')}
+
+const bookCss='body{max-width:48em;margin:1em auto;padding:1em;font-family:serif;line-height:1.75;color:#213f38}h1,h2{line-height:1.4}.bookVerse,.bookFoot{white-space:pre-wrap;overflow-wrap:anywhere}.bookPair{display:inline-flex;flex-direction:column;vertical-align:bottom}.bookChord{font:bold .8em/1.25 monospace;color:#775020}.bookFoot{border-top:1px solid #ccc;padding-top:.7em}section{margin:2em 0;break-before:page}a{color:#17584c}';
+function pictures(book){return Array.isArray(book.images)?book.images.filter(x=>x instanceof Uint8Array):[]}
+function gallery(images,inline){
+ if(!images.length)return '';
+ return '<section><h2>原書圖片附錄</h2>'+images.map((bytes,i)=>{
+  let src='p'+i+'.png';
+  if(inline){let binary='';for(let n=0;n<bytes.length;n+=8192)binary+=String.fromCharCode(...bytes.subarray(n,n+8192));src='data:image/png;base64,'+btoa(binary)}
+  return '<figure><img alt="原書圖片 '+(i+1)+'" src="'+src+'"/></figure>';
+ }).join('')+'</section>';
+}
+function htmlBook(b){return '<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+safeXml(b.title)+'</title><style>'+bookCss+'</style><main><h1>'+safeXml(b.title)+'</h1><p>'+safeXml(b.author)+'</p><nav id="toc"><h2>目錄</h2><ol>'+b.chapters.map((c,i)=>'<li><a href="#c'+i+'">'+safeXml(heading(c,i))+'</a></li>').join('')+'</ol></nav>'+b.chapters.map((c,i)=>'<section id="c'+i+'">'+chapter(c,i)+'<p><a href="#toc">回目錄</a></p></section>').join('') +gallery(pictures(b),true)+'</main></html>'}
+
 function epubBook(b){
- const xml='<?xml version="1.0" encoding="UTF-8"?>',uuid='urn:uuid:'+crypto.randomUUID(),title=safeXml(b.title);
+ const xml='<?xml version="1.0" encoding="UTF-8"?>',uuid='urn:uuid:'+globalThis.crypto.randomUUID(),title=safeXml(b.title);
  const page=(t,body)=>xml+'<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="zh-Hant" lang="zh-Hant"><head><title>'+t+'</title><link href="book.css" rel="stylesheet" type="text/css"/></head><body>'+body+'</body></html>';
  const names=b.chapters.map((c,i)=>safeXml(heading(c,i))), links=names.map((n,i)=>'<li><a href="c'+i+'.xhtml">'+n+'</a></li>').join('');
- const opf=xml+'<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">'+uuid+'</dc:identifier><dc:title>'+title+'</dc:title><dc:language>zh-Hant</dc:language>'+(b.author?'<dc:creator>'+safeXml(b.author)+'</dc:creator>':'')+'<meta property="dcterms:modified">'+new Date().toISOString().split('.')[0]+'Z</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="css" href="book.css" media-type="text/css"/><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'+names.map((_,i)=>'<item id="c'+i+'" href="c'+i+'.xhtml" media-type="application/xhtml+xml"/>').join('')+'</manifest><spine toc="ncx"><itemref idref="nav"/>'+names.map((_,i)=>'<itemref idref="c'+i+'"/>').join('')+'</spine></package>';
+ const opf=xml+'<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">'+uuid+'</dc:identifier><dc:title>'+title+'</dc:title><dc:language>zh-Hant</dc:language>'+(b.author?'<dc:creator>'+safeXml(b.author)+'</dc:creator>':'')+'<meta property="dcterms:modified">'+new Date().toISOString().split('.')[0]+'Z</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="css" href="book.css" media-type="text/css"/><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'+names.map((_,i)=>'<item id="c'+i+'" href="c'+i+'.xhtml" media-type="application/xhtml+xml"/>').join('')+pictures(b).map((_,i)=>'<item id="p'+i+'" href="p'+i+'.png" media-type="image/png"/>').join('')+'</manifest><spine toc="ncx"><itemref idref="nav"/>'+names.map((_,i)=>'<itemref idref="c'+i+'"/>').join('')+'</spine></package>';
  const ncx=xml+'<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="'+uuid+'"/></head><docTitle><text>'+title+'</text></docTitle><navMap>'+names.map((n,i)=>'<navPoint id="p'+i+'" playOrder="'+(i+1)+'"><navLabel><text>'+n+'</text></navLabel><content src="c'+i+'.xhtml"/></navPoint>').join('')+'</navMap></ncx>';
- return zip([['mimetype','application/epub+zip'],['META-INF/container.xml',xml+'<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="EPUB/book.opf" media-type="application/oebps-package+xml"/></rootfiles></container>'],['EPUB/book.opf',opf],['EPUB/book.css',bookCss],['EPUB/toc.ncx',ncx],['EPUB/nav.xhtml',page(title,'<h1>'+title+'</h1><nav epub:type="toc"><h2>目錄</h2><ol>'+links+'</ol></nav>')],...names.map((n,i)=>['EPUB/c'+i+'.xhtml',page(n,chapter(b.chapters[i],i))])]);
+ return zip([['mimetype','application/epub+zip'],['META-INF/container.xml',xml+'<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="EPUB/book.opf" media-type="application/oebps-package+xml"/></rootfiles></container>'],['EPUB/book.opf',opf],['EPUB/book.css',bookCss],['EPUB/toc.ncx',ncx],['EPUB/nav.xhtml',page(title,'<h1>'+title+'</h1><nav epub:type="toc"><h2>目錄</h2><ol>'+links+'</ol></nav>')],...names.map((n,i)=>['EPUB/c'+i+'.xhtml',page(n,chapter(b.chapters[i],i)+(i===names.length-1?gallery(pictures(b),false):''))]),...pictures(b).map((img,i)=>['EPUB/p'+i+'.png',img])]);
 }
 
 const chordPattern=/^([A-G])([#b♯♭]?)(?:(m(?:aj|in)?|M|maj|min|dim|aug|sus|add|no|omit|alt|dom|Δ|ø|°|\+|-|[#b♯♭]|[0-9]|[(),])*)(?:\/([A-G])([#b♯♭]?))?$/;
@@ -347,12 +358,7 @@ function shifted(name,step){
  const suffix=name.slice(rootLength,slash===-1?undefined:slash);
  return note(m[1],m[2])+suffix+(m[4]?'/'+note(m[4],m[5]):'');
 }
-for(const [id,step] of [['lower',-1],['raise',1]])ui[id].onclick=()=>{
- const c=book.chapters[active];let count=0;
- const next=c.body.replace(/\[([^\]\r\n]{1,32})\]/g,(token,name)=>{const chord=shifted(name,step);if(chord===name)return token;count++;return '['+chord+']'});
- if(!count)return message('本章沒有可移調的方括號和弦。');
- c.body=next;render();store();message('已將本章 '+count+' 個和弦'+(step>0?'升':'降')+'半音。');
-};
+
 function excelBook(b){
  const xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
  const main='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
@@ -371,7 +377,7 @@ function excelBook(b){
  row(['書名','編者','章序','篇名或歌名','行序','內文或歌詞','和弦','含和弦原文','經文出處與附註']);
  b.chapters.forEach((c,i)=>c.body.split(/\r\n?|\n/).forEach((line,j)=>{
    const chords=[];const lyrics=line.replace(/\[([^\]\r\n]{1,32})\]/g,(token,name)=>{if(!chordPattern.test(name))return token;chords.push(name);return ''});
-   row([b.title,b.author,i+1,heading(c,i),j+1,lyrics,chords.join(' '),line,j===0?c.note:'']);
+   row([b.title,b.author,i+1,heading(c,i),j+1,lyrics,chords.join(' '),line,[j===0?c.note:'',lineNotes(c).get(j+1)].filter(Boolean).join('；')]);
  }));
  const sheet=xml+'<worksheet xmlns="'+main+'"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="16"/><cols>'+[22,15,8,24,8,48,18,54,38].map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join('')+'</cols><sheetData>'+rows.join('')+'</sheetData><autoFilter ref="A1:I'+seq+'"/></worksheet>';
  const relationship=(type,target)=>xml+'<Relationships xmlns="'+pkg+'"><Relationship Id="rId1" Type="'+rel+'/'+type+'" Target="'+target+'"/></Relationships>';
@@ -389,17 +395,123 @@ function readCho(raw,fallback){
   const t=line.match(/^\s*\{(?:title|t)\s*:\s*(.*?)\}\s*$/i);
   if(t){if(hasTitle||c.body.trim())push();c.name=t[1];hasTitle=true;continue}
   if(/^\s*\{new_song\}\s*$/i.test(line)){push();continue}
+  const annotation=line.match(/^\{comment: 行註 (\d+) \| (.*)\}$/);if(annotation){c.lineNotes=(c.lineNotes||'')+annotation[1]+' | '+annotation[2]+'\n';continue}
   const note=line.match(/^\s*\{comment:\s*經文附註：(.*)\}\s*$/);if(note){c.note+=(c.note?'\n':'')+note[1];continue}
   c.body+=line+'\n';
  }
  push();return songs;
 }
-function writeCho(b){return b.chapters.map((c,i)=>'{title: '+heading(c,i).replace(/[\r\n]/g,' ')+'}\n'+(c.note?c.note.split(/\r?\n/).map(n=>'{comment: 經文附註：'+n+'}').join('\n')+'\n':'')+c.body).join('\n{new_song}\n')}
+function writeCho(b){return b.chapters.map((c,i)=>'{title: '+heading(c,i).replace(/[\r\n]/g,' ')+'}\n'+(c.note?c.note.split(/\r?\n/).map(n=>'{comment: 經文附註：'+n+'}').join('\n')+'\n':'')+[...lineNotes(c)].map(([n,t])=>'{comment: 行註 '+n+' | '+t+'}\n').join('')+c.body).join('\n{new_song}\n')}
+
+function be16(n){return [n>>>8,n&255]}
+function joinParts(parts){
+  const out=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));
+  let at=0;for(const part of parts){out.set(part,at);at+=part.length}
+  return out;
+}
+function palmGray(width,height,rgba,bits){
+  if(![1,2,4].includes(bits)||width<1||height<1||rgba.length!==width*height*4)throw Error('圖片格式錯誤');
+  const stride=2*Math.ceil(width*bits/16),data=new Uint8Array(16+stride*height);
+  if(data.length>64000)throw Error('圖片太大，請縮小尺寸。');
+  data.set([...be16(width),...be16(height),...be16(stride),0,0,bits,1]);
+  const max=(1<<bits)-1;
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+    const i=(y*width+x)*4,a=rgba[i+3]/255;
+    const l=(rgba[i]*0.299+rgba[i+1]*0.587+rgba[i+2]*0.114)*a+255*(1-a);
+    data[16+y*stride+(x*bits>>3)]|=Math.round((1-l/255)*max)<<(8-bits-x*bits%8);
+  }
+  return data;
+}
+async function pluckerBook(book,{bitmap=null,compress=true}={}){
+  const pages=[[]];let used=0;
+  function paragraph(bytes){
+    if(used+4+bytes.length>58000){pages.push([]);used=0}
+    pages.at(-1).push(bytes);used+=4+bytes.length;
+  }
+  if(bitmap)paragraph([0,26,0,7]);
+  for(const c of book.chapters){
+    for(const line of [c.name,c.body,c.note||''].join('\n').replace(/\r\n?/g,'\n').split('\n')){
+      let bytes=[];
+      for(const ch of line){
+        const n=ch.codePointAt(0);
+        if(n>=32&&n<127)bytes.push(n);
+        else if(n>65535)bytes.push(0,133,0,0,n>>>16,...be16(n&65535));
+        else if(n>=128)bytes.push(0,131,0,...be16(n));
+        else if(n===9)bytes.push(32);
+        if(bytes.length>=8000){paragraph(bytes);bytes=[]}
+      }
+      paragraph(bytes);
+    }
+  }
+  if(pages.length>65520)throw Error('書籍過大');
+  const records=[Uint8Array.from([0,1,0,compress?2:1,0,1,0,0,0,2])],ids=[1];
+  const pageId=i=>i===0?2:i+10;
+  async function add(id,type,rows,body){
+    let packed=body;
+    if(compress&&body.length&&typeof CompressionStream==='function'){
+      const stream=new Blob([body]).stream().pipeThrough(new CompressionStream('deflate'));
+      const candidate=new Uint8Array(await new Response(stream).arrayBuffer());
+      if(candidate.length<body.length){packed=candidate;type++}
+    }
+    records.push(joinParts([[...be16(id),...be16(rows.length),...be16(body.length),type,0],...rows.map(r=>[...be16(r.length),0,0]),packed]));ids.push(id);
+  }
+  for(let i=0;i<pages.length;i++){
+    const rows=pages[i];
+    const link=(id,label)=>[0,10,...be16(id),...new TextEncoder().encode(label),0,8];
+    if(i)rows.unshift(link(pageId(i-1),'Previous'));
+    if(i+1<pages.length)rows.push(link(pageId(i+1),'Next'));
+    await add(pageId(i),0,rows,joinParts(rows));
+  }
+  if(bitmap)await add(7,2,[],bitmap);
+  const header=new Uint8Array(80+records.length*8),v=new DataView(header.buffer);
+  header.set(new TextEncoder().encode(book.title||'Book').subarray(0,31));
+  header.set(new TextEncoder().encode('DataPlkr'),60);v.setUint32(68,Math.max(...ids)+1);v.setUint16(76,records.length);
+  let offset=header.length;
+  records.forEach((r,i)=>{v.setUint32(78+i*8,offset);v.setUint32(82+i*8,ids[i]);offset+=r.length});
+  return joinParts([header,...records]);
+}
+
+let book={title:'',author:'',chapters:[blank()]}, active=0;
+window.pdbBookFormats={htmlBook,epubBook};
+function message(t){ui.status.textContent=t}
+function store(){try{localStorage.setItem(key,JSON.stringify(book))}catch{message('瀏覽器未能保存草稿，請下載編輯檔備份。')}}
+function updateIndex(){ui.list.replaceChildren(...book.chapters.map((c,i)=>new Option((i+1)+'. '+heading(c,i),String(i))));ui.list.selectedIndex=active;ui.up.disabled=active===0;ui.down.disabled=active===book.chapters.length-1;}
+function render(){ui.title.value=book.title;ui.author.value=book.author;const c=book.chapters[active];ui.name.value=c.name;ui.body.value=c.body;ui.note.value=c.note;ui.lineNotes.value=c.lineNotes||'';updateIndex();ui.preview.innerHTML=chapter(c,active)}
+try{const draft=JSON.parse(localStorage.getItem(key));if(valid(draft))book=draft}catch{}
+for(const k of ['title','author','name','body','note','lineNotes'])ui[k].oninput=()=>{if(k==='title'||k==='author')book[k]=ui[k].value;else book.chapters[active][k]=ui[k].value;if(k==='name')updateIndex();ui.preview.innerHTML=chapter(book.chapters[active],active);message('');store()};
+ui.list.onchange=()=>{active=ui.list.selectedIndex;render()};
+ui.add.onclick=()=>{if(book.chapters.length>=2000)return message('每本最多 2,000 章。');book.chapters.splice(++active,0,blank());render();store();ui.name.focus()};
+for(const [k,d] of [['up',-1],['down',1]])ui[k].onclick=()=>{const next=active+d;if(next<0||next>=book.chapters.length)return;[book.chapters[active],book.chapters[next]]=[book.chapters[next],book.chapters[active]];active=next;render();store()};
+ui.remove.onclick=()=>{if(!confirm('移除「'+heading(book.chapters[active],active)+'」？'))return;book.chapters.splice(active,1);if(!book.chapters.length)book.chapters.push(blank());active=Math.min(active,book.chapters.length-1);render();store()};
+for(const [id,step] of [['lower',-1],['raise',1]])ui[id].onclick=()=>{
+ const c=book.chapters[active];let count=0;
+ const next=c.body.replace(/\[([^\]\r\n]{1,32})\]/g,(token,name)=>{const chord=shifted(name,step);if(chord===name)return token;count++;return '['+chord+']'});
+ if(!count)return message('本章沒有可移調的方括號和弦。');
+ c.body=next;render();store();message('已將本章 '+count+' 個和弦'+(step>0?'升':'降')+'半音。');
+};
 ui.import.onchange=async()=>{try{const added=[];for(const f of ui.import.files){if(f.size>10*1024*1024)throw Error('單檔上限為 10 MB。');added.push(...readCho(new TextDecoder('utf-8',{fatal:true}).decode(await f.arrayBuffer()),f.name.replace(/\.[^.]+$/,'')))}if(!added.length)throw Error('未讀到歌詞。');const pristine=book.chapters.length===1&&Object.values(book.chapters[0]).every(s=>!s);if(added.length+(pristine?0:book.chapters.length)>2000)throw Error('每本最多 2,000 章。');if(pristine)book.chapters=[];active=book.chapters.length;book.chapters.push(...added);render();message('已加入 '+added.length+' 章。');store()}catch(e){message('匯入失敗。'+e.message)}finally{ui.import.value=''}};
 ui.restore.onchange=async()=>{try{const f=ui.restore.files[0];if(!f)return;if(f.size>40*1024*1024)throw Error('編輯檔上限為 40 MB。');const b=JSON.parse(await f.text());if(!valid(b))throw Error('編輯檔格式不符。');if(!confirm('以選取的編輯檔取代目前整本草稿？'))return;book=b;active=0;render();message('已還原編輯檔。');store()}catch(e){message('還原失敗。'+e.message)}finally{ui.restore.value=''}};
 for(const [id,ext,type,make] of [['excel','xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',excelBook],['html','html','text/html',htmlBook],['epub','epub','application/epub+zip',epubBook],['cho','cho','text/plain',writeCho],['backup','json','application/json',b=>JSON.stringify(b,null,2)]]){
  ui[id].onclick=()=>{try{if(id!=='backup'&&!book.title.trim()){ui.title.focus();return message('請先填寫書名。')}const output=make(book),blob=output instanceof Blob?output:new Blob([output],{type:type+';charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(book.title.trim()||'書籍草稿').replace(/[\\/:*?"<>|]/g,'_')+'.'+ext;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);message('已產生 '+ext.toUpperCase()+' 檔。')}catch(e){message('匯出失敗。'+e.message)}};
 }
+ui.plucker.onclick=async()=>{
+ try{
+  if(!book.title.trim())throw Error('請先填寫書名。');
+  let bitmap=null;const file=ui.cover.files[0];
+  if(file){
+   const img=await createImageBitmap(file);
+   try{
+    const ratio=Math.min(1,Number(ui.side.value)/Math.max(img.width,img.height)),canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.width*ratio));canvas.height=Math.max(1,Math.round(img.height*ratio));
+    const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    bitmap=palmGray(canvas.width,canvas.height,ctx.getImageData(0,0,canvas.width,canvas.height).data,Number(ui.bits.value));
+   }finally{img.close()}
+  }
+  const data=await pluckerBook(book,{bitmap,compress:ui.compress.checked});
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data]));a.download=book.title+'.pdb';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),30000);message('已產生 Plucker PDB。');
+ }catch(e){message(e.message)}
+};
 ui.palm.onclick=()=>openPalmDraft(book.title,book.chapters.map((c,i)=>[heading(c,i),c.body,c.note].filter(Boolean).join('\n')).join('\n\n'));
 render();
 })();
@@ -576,13 +688,13 @@ get('go').onclick=async()=>{
 <section class="card" id="pdr">
   <h2>PDB 轉純文字與閱讀</h2>
   <div class="twocol"><div><label for="pdrFile">開啟本機 PDB 或 PRC</label><input id="pdrFile" type="file" accept=".pdb,.prc"></div><div><label for="pdrEncoding">文字編碼</label><select id="pdrEncoding"><option value="auto">自動判讀</option><option value="big5">繁體中文 Big5</option><option value="utf-8">UTF-8</option><option value="gb18030">簡體中文 GB18030</option><option value="windows-1252">西歐文字</option></select></div></div>
-  <p class="status" id="pdrStatus" role="status">選取 SDoc 或 PalmDOC 電子書即可預覽全文並下載 UTF-8 純文字。若中文字顯示異常，可切換為 Big5。</p>
+  <p class="status" id="pdrStatus" role="status">選取 SDoc、PalmDOC 或 Palm 備忘錄、聯絡人、行事曆、待辦事項即可預覽全文並下載 UTF-8 純文字。若中文字顯示異常，可切換為 Big5。</p>
   <details><summary>批次轉 TXT</summary><div class="twocol"><label>選取多本電子書<input id="pdrBatchFiles" type="file" accept=".pdb,.prc" multiple></label><label>或選取整個資料夾<input id="pdrBatchFolder" type="file" webkitdirectory multiple></label></div>
   <div class="pdr-actions"><button id="pdrBatchGo" type="button" disabled>開始批次轉檔</button><a id="pdrBatchZip" hidden download="PDB純文字.zip">下載 ZIP 與轉檔清單</a></div><p id="pdrBatchStatus" role="status"></p><pre id="pdrBatchLog" style="white-space:pre-wrap;max-height:14em;overflow:auto"></pre></details>
-  <details id="pdrShelf"><summary>本機書架</summary><div class="pdr-actions"><button type="button" id="pdrSaveBook" disabled>將目前檔案加入書架</button><select id="pdrShelfBook" aria-label="已儲存的書籍"></select><button type="button" id="pdrOpenBook" disabled>開啟藏書</button><button type="button" id="pdrDeleteBook" disabled>移出書架</button></div><p id="pdrShelfStatus" class="note" role="status">書籍儲存在目前使用的瀏覽器。</p></details>
+  <details id="pdrShelf"><summary>本機書架</summary><div class="pdr-actions"><button type="button" id="pdrSaveBook" disabled>將目前檔案加入書架</button><select id="pdrShelfBook" aria-label="已儲存的書籍"></select><button type="button" id="pdrOpenBook" disabled>開啟藏書</button><button type="button" id="pdrDeleteBook" disabled>移出書架</button></div><p id="pdrShelfStatus" class="note" role="status">書籍儲存在目前使用的瀏覽器。</p><label>整個資料夾加入書架<input id="pdrImportShelf" type="file" webkitdirectory multiple></label><label>搜尋所有藏書<input id="pdrSearchShelf" type="search"></label><button id="pdrSearchAll" type="button">跨書搜尋</button><div id="pdrShelfResults"></div></details>
   <details hidden id="pdrDiagnostics"><summary>檔案結構與記錄</summary><dl id="pdrStats"></dl><div class="pdr-actions"><button type="button" id="pdrRecordPrev">前 50 筆</button><span id="pdrRecordRange"></span><button type="button" id="pdrRecordNext">後 50 筆</button></div>
   <div class="pdr-table"><table><thead><tr><th>記錄編號</th><th>檔案位置</th><th>長度（位元組）</th><th>記錄識別碼</th></tr></thead><tbody id="pdrRecords"></tbody></table></div></details>
-  <div hidden id="pdrReading"><button type="button" id="pdrDownload">下載全書純文字（.txt）</button><h3 id="pdrBook"></h3>
+  <div hidden id="pdrReading"><button type="button" id="pdrDownload">下載全書純文字（.txt）</button><button type="button" id="pdrHtml">下載正文 HTML</button> <button type="button" id="pdrEpub">下載正文 EPUB</button><h3 id="pdrBook"></h3>
     <div class="twocol"><div><label for="pdrChapter">章節索引</label><select id="pdrChapter"></select></div><div><label for="pdrFont">閱讀字級</label><select id="pdrFont"><option value="18">標準</option><option value="22">大字</option><option value="27">特大</option></select></div></div>
     <label for="pdrQuery">全文搜尋</label><div class="pdr-actions"><input id="pdrQuery" type="search"><button type="button" id="pdrFind">搜尋</button><button type="button" id="pdrFindNext">下一筆</button><span id="pdrMatches" role="status"></span></div>
     <div class="pdr-actions"><button type="button" id="pdrPrev">上一頁</button><span id="pdrPage"></span><button type="button" id="pdrNext">下一頁</button><button type="button" id="pdrNight" aria-pressed="false">夜間閱讀</button></div>
@@ -789,7 +901,66 @@ function extractSdoc(bytes, db) {
   return out;
 }
 
+function palmRecords(bytes, db) {
+  const encoder=new TextEncoder(), blocks=[];
+  let total=0;
+  function add(item){
+    const data=typeof item==='string'?encoder.encode(item):item;
+    total+=data.length;
+    if(total>maxBytes)throw Error('匯出的資料量超過上限。');
+    blocks.push(data);
+  }
+  function date(value){
+    if(value===65535)return '';
+    return (1904+(value>>>9))+'-'+String((value>>5)&15).padStart(2,'0')+'-'+String(value&31).padStart(2,'0');
+  }
+  for(const [index,entry] of db.records.entries()) {
+    if((bytes[78+index*8+4]&128) || entry.start===entry.end)continue;
+    const data=bytes.subarray(entry.start,entry.end);
+    let pos=0;
+    function take(n){
+      if(n>data.length-pos)throw Error('Palm 記錄長度錯誤：'+(index+1));
+      const part=data.subarray(pos,pos+n);pos+=n;return part;
+    }
+    const u8=()=>take(1)[0];
+    const u16=()=>{const b=take(2);return b[0]*256+b[1]};
+    function string(){
+      const end=data.indexOf(0,pos);
+      if(end<0)throw Error('Palm 文字記錄缺少結尾。');
+      const field=take(end-pos);pos++;return field;
+    }
+    function field(label,value){add(label+': ');add(value);add('\n')}
+    if(blocks.length)add('\n');
+    if(db.creator==='memo'){add(string());add('\n')}
+    if(db.creator==='todo'){
+      const due=date(u16()),flags=u8();field('Completed',flags&128?'yes':'no');field('Priority',String(flags&127));
+      if(due)field('Due',due);field('Task',string());field('Note',string());
+    }
+    if(db.creator==='addr'){
+      const phone=take(4), fields=take(4);
+      const mask=fields[1]*65536+fields[2]*256+fields[3];take(1);
+      const names=['Last name','First name','Company','Phone 1','Phone 2','Phone 3','Phone 4','Phone 5','Address','City','State','ZIP','Country','Title','Custom 1','Custom 2','Custom 3','Custom 4','Note'];
+      const types=['Work','Home','Fax','Other','Email','Main','Pager','Mobile'];
+      const labels=(phone[1]<<16)|(phone[2]<<8)|phone[3];
+      for(let i=0;i<names.length;i++)if(mask&(1<<i))field(i>=3&&i<8?types[(labels>>((i-3)*4))&15]||names[i]:names[i],string());
+    }
+    if(db.creator==='date'){
+      const clock=()=>{const h=u8(),m=u8();return h===255?'':String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')};
+      const start=clock(),end=clock();field('Date',date(u16()));if(start)field('Time',start+' - '+end);
+      const flags=u8();take(1);
+      if(flags&64){const amount=u8(),unit=u8();field('Alarm',amount+' '+(['minutes','hours','days'][unit]||unit))}
+      if(flags&32){const kind=u8();take(1);const until=date(u16()),every=u8(),rule=u8(),week=u8();take(1);
+        field('Repeat',[kind,until,every,rule,week].join(' / '));}
+      if(flags&8){const n=u16();for(let i=0;i<n;i++)field('Except',date(u16()))}
+      if(flags&4)field('Event',string());if(flags&16)field('Note',string());
+    }
+  }
+  const result=new Uint8Array(total);let offset=0;
+  for(const b of blocks){result.set(b,offset);offset+=b.length}return result;
+}
+
   function extract(bytes,db){
+    if(db.type==="DATA")return palmRecords(bytes,db);
     if(db.type==="SDoc" && db.creator==="SilX") return extractSdoc(bytes,db);
     const head=db.records[0];
     if(!head||head.end-head.start<16)broken("PalmDOC 缺少完整的文件檔頭。");
@@ -810,6 +981,7 @@ function extractSdoc(bytes, db) {
   }
   function requireTextFormat(db){
     if(db.chained) broken("串接式記錄目錄目前僅支援結構檢視。");
+    if(!db.resource && db.type==="DATA" && ["memo","addr","date","todo"].includes(db.creator))return;
     if(!db.resource && db.type==="SDoc" && db.creator==="SilX") return;
     if(db.resource || db.type!=="TEXt" || db.creator!=="REAd"){
       broken("尚未支援正文轉檔："+db.type+" / "+db.creator);
@@ -861,6 +1033,102 @@ async function batchBooks(files, reader, encoding, progress = () => {}) {
   const summary = '成功 '+entries.length+' 本，失敗 '+(files.length-entries.length)+' 本';
   entries.push(['轉檔清單.txt',summary+'\n\n'+report.join('\n')+'\n']);
   return {entries, summary, succeeded:entries.length-1};
+}
+
+  const chapterPattern = /^[ \t]*(?:第[零〇一二兩三四五六七八九十百千萬0-9０-９]+[章篇部卷節首]|chapter\s+[\dIVXLCDM]+\b|卷[一二三四五六七八九十]+|#{1,4}\s)[^\n]{0,100}$/gim;
+function originalChapters(bytes,db,plain,encoding){
+  if(db.type!=='SDoc'||!db.records.length)return [];
+  const {start,end}=db.records.at(-1),record=bytes.subarray(start,end);
+  if(record.length<8||record[0]!==0||record[1]!==8)return [];
+  const v=new DataView(record.buffer,record.byteOffset,record.byteLength),count=v.getUint16(4);
+  const offsets=record.length-count*4;
+  if(!count||offsets<8||count>5000)return [];
+  const decoder=new TextDecoder(encoding==='auto'?'utf-8':encoding);
+  let namePos=8,prior=0,charPos=0;
+  const out=[];
+  for(let i=0;i<count;i++){
+    const zero=record.indexOf(0,namePos),pos=v.getUint32(offsets+i*4);
+    if(zero<namePos||zero>=offsets||pos<prior||pos>plain.length)return [];
+    charPos+=decoder.decode(plain.subarray(prior,pos)).replace(/\r\n?/g,'\n').length;
+    const name=decoder.decode(record.subarray(namePos,zero)).trim();
+    if(name)out.push({name,index:charPos});
+    namePos=zero+1;prior=pos;
+  }
+  return out;
+}
+function textChapters(text,original=[]) {
+  const chapters = [];
+  let start=0, name='全書開頭';
+  for (const match of original.length?original.map(x=>({0:x.name,index:x.index})):text.matchAll(chapterPattern)) {
+    if (match.index>start) chapters.push({name,body:text.slice(start,match.index),note:'',start});
+    start=match.index; name=match[0].trim();
+  }
+  chapters.push({name,body:text.slice(start),note:'',start});
+  return chapters;
+}
+function searchBook(title,text,term) {
+  const results=[];
+  for (const c of textChapters(text)) {
+    const pos=c.body.indexOf(term), inTitle=title.includes(term), inChapter=c.name.includes(term);
+    if(pos<0 && !inChapter && !(inTitle && !results.length)) continue;
+    const i=Math.max(pos,0);
+    results.push({chapter:c.name,offset:c.start+i,score:(inTitle?4:0)+(inChapter?2:0)+(pos>=0?1:0),
+      snippet:c.body.slice(Math.max(0,i-26),i+term.length+48).replace(/\s+/g,' ')});
+  }
+  return results;
+}
+
+function imagePng(record){
+  const r=record.subarray(4),v=new DataView(r.buffer,r.byteOffset,r.byteLength);
+  if(r.length<16)return null;
+  const w=v.getUint16(0),h=v.getUint16(2),stride=v.getUint16(4),flags=v.getUint16(6),bits=r[8];
+  const row=Math.ceil(w*bits/8),size=stride*h;
+  if(!w||!h||![1,2,4].includes(bits)||stride<row||size>4*1024*1024||flags&0x6000)return null;
+  const raster=new Uint8Array(size);let k=16;
+  function byte(){if(k>=r.length)throw Error('圖片記錄不完整');return r[k++]}
+  if(!(flags&0x8000)){
+    if(k+size>r.length)return null;raster.set(r.subarray(k,k+size));
+  }else{
+    k+=2;const mode=r[13];
+    if(mode===0){
+      for(let y=0;y<h;y++)for(let x=0;x<stride;){
+        const mask=byte();for(let j=0;j<8&&x<stride;j++,x++){
+          const i=y*stride+x;raster[i]=mask&(128>>j)?byte():y?raster[i-stride]:0;
+        }
+      }
+    }else if(mode===1||mode===2){
+      for(let i=0;i<size;){
+        const n=byte();
+        if(mode===2&&n===128)continue;
+        const repeat=mode===1||n>128,count=mode===1?n:repeat?257-n:n+1;
+        if(!count||i+count>size)return null;
+        if(repeat){raster.fill(byte(),i,i+count);i+=count}
+        else for(let j=0;j<count;j++)raster[i++]=byte();
+      }
+    }else return null;
+  }
+  const raw=new Uint8Array((row+1)*h);
+  for(let y=0;y<h;y++)for(let x=0;x<row;x++)raw[y*(row+1)+1+x]=255-raster[y*stride+x];
+  const u32=n=>[(n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255];
+  const cat=parts=>{const a=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));let at=0;for(const p of parts){a.set(p,at);at+=p.length}return a};
+  function chunk(name,bytes){
+    const tag=new TextEncoder().encode(name);let crc=0xffffffff;
+    for(const p of [tag,bytes])for(const x of p){crc^=x;for(let j=0;j<8;j++)crc=(crc>>>1)^((crc&1)?0xedb88320:0)}
+    return cat([u32(bytes.length),tag,bytes,u32(~crc)]);
+  }
+  const blocks=[[120,1]];let a=1,b=0;
+  for(let i=0;i<raw.length;i+=65535){const n=Math.min(65535,raw.length-i);blocks.push([i+n===raw.length?1:0,n&255,n>>>8,~n&255,(~n>>>8)&255],raw.subarray(i,i+n))}
+  for(const x of raw){a=(a+x)%65521;b=(b+a)%65521}blocks.push(u32((b<<16)|a));
+  return cat([[137,80,78,71,13,10,26,10],chunk('IHDR',Uint8Array.from([...u32(w),...u32(h),bits,0,0,0,0])),chunk('IDAT',cat(blocks)),chunk('IEND',[])]);
+}
+function sdocImages(bytes,db){
+  if(db.type!=='SDoc')return [];
+  const images=[];let total=0;
+  for(const {start,end} of db.records){
+    if(bytes[start]!==4||bytes[start+1]!==4)continue;
+    try{const png=imagePng(bytes.subarray(start,end));if(png){total+=png.length;if(total>32*1024*1024)break;images.push(png)}}catch{}
+  }
+  return images;
 }
 
   const batchInputs=[el("BatchFiles"),el("BatchFolder")];
@@ -936,6 +1204,8 @@ async function batchBooks(files, reader, encoding, progress = () => {}) {
     chapters=[["全書開頭",0]];
     const pattern=/^(?:[ \t]*(?:第[零〇一二兩三四五六七八九十百千萬0-9０-９]+[章篇部卷節首]|chapter\s+[\dIVXLCDM]+\b|卷[一二三四五六七八九十]+|#{1,4}\s))[^\n]{0,100}$/gim;
     for(const match of body.matchAll(pattern)){if(chapters.length>=3000)break;chapters.push([match[0].trim(),match.index])}
+    const original=originalChapters(bytes,db,plain,el("Encoding").value==="auto"?db.encoding||"auto":el("Encoding").value);
+    if(original.length)chapters=[["全書開頭",0],...original.map(x=>[x.name,x.index])];
     options(el("Chapter"),chapters);el("Book").textContent=title;
     marks=[];try{const saved=JSON.parse(localStorage.getItem(key)||"[]");if(Array.isArray(saved))marks=saved.filter(p=>Number.isInteger(p)&&p>=0&&p<pageStarts.length)}catch{}
     let prior=0;try{const n=Number(localStorage.getItem(key+":page"));if(Number.isInteger(n))prior=n}catch{}
@@ -950,8 +1220,7 @@ async function batchBooks(files, reader, encoding, progress = () => {}) {
       if(file.size>maxBytes)broken("瀏覽器閱讀上限為 48 MiB。");
       const b=new Uint8Array(await file.arrayBuffer());if(request!==ticket)return;
       bytes=b;db=parsePdb(b);filename=file.name;recordPage=0;
-      let hash=2166136261;for(const v of b)hash=Math.imul(hash^v,16777619);
-      key="pdb-workbench-reader:1:"+b.length+":"+(hash>>>0);
+      key=shelfKey(b);
       currentFile=file;el("SaveBook").disabled=!shelfDb;
       const stats=el("Stats");stats.replaceChildren();
       for(const [label,value] of [["資料庫名稱",decode(db.name,"auto")],["類型 / 建立程式",db.type+" / "+db.creator],["記錄數",db.records.length],["檔案大小",b.length.toLocaleString()+" bytes"]]){
@@ -960,7 +1229,7 @@ async function batchBooks(files, reader, encoding, progress = () => {}) {
       records();el("Diagnostics").hidden=false;
       try{requireTextFormat(db)}catch(error){el("Diagnostics").open=true;throw error}
       plain=extract(b,db);
-      el("Reading").hidden=false;renderBody();el("Status").textContent=(db.type==="SDoc"?"SDoc":"PalmDOC")+" 全書正文已載入。";
+      el("Reading").hidden=false;renderBody();el("Status").textContent=(db.type==="DATA"?db.creator:db.type==="SDoc"?"SDoc":"PalmDOC")+" 全書正文已載入。";
     }catch(e){el("Status").textContent=e.message;el("Reading").hidden=true}
   }
   function find(next){
@@ -972,6 +1241,52 @@ async function batchBooks(files, reader, encoding, progress = () => {}) {
     if(hit<0){el("Matches").textContent="找不到符合的文字。";showPage(page);return}
     showPage(pageFor(hit));el("Matches").textContent=(wrap?"已從開頭繼續 · ":"")+"第 "+(page+1)+" 頁";
   }
+  try{el("Encoding").value=localStorage.getItem("pdb-reader-encoding")||"auto"}catch{}
+  function shelfKey(b){
+    let hash=2166136261;for(const v of b)hash=Math.imul(hash^v,16777619);
+    return "pdb-workbench-reader:1:"+b.length+":"+(hash>>>0);
+  }
+  function shelfLabel(b,db,file){
+    return (decode(db.name,"auto")||file.name)+" · "+file.name+" · "+db.type+"/"+db.creator+" · "+Math.ceil(b.length/1024)+" KB";
+  }
+  el("ImportShelf").onchange=async()=>{
+    let ok=0;const errors=[];
+    for(const file of Array.from(el("ImportShelf").files).filter(f=>/\.(pdb|prc)$/i.test(f.name))){
+      try{if(file.size>maxBytes)throw Error("單本超過 48 MiB");
+        const b=new Uint8Array(await file.arrayBuffer()),db=parsePdb(b);
+        await shelfAction("readwrite",s=>s.put({id:shelfKey(b),label:shelfLabel(b,db,file),file}));ok++;
+      }catch(e){errors.push(file.name+" "+e.message)}
+    }
+    await refreshShelf();shelfStatus("已加入 "+ok+" 本。"+errors.join("、"));el("ImportShelf").value="";
+  };
+  el("SearchAll").onclick=async()=>{
+    const term=el("SearchShelf").value.trim(), dest=el("ShelfResults");
+    dest.replaceChildren();if(!term)return shelfStatus("請輸入搜尋文字。");
+    el("SearchAll").disabled=true;
+    try{
+      const results=[], skipped=[];
+      for(const option of el("ShelfBook").options){
+        if(!option.value)continue;
+        try{
+          const item=await shelfAction("readonly",s=>s.get(option.value));
+          const source=new Uint8Array(await item.file.arrayBuffer());
+          const encoding=el("Encoding").value;
+          const text=bookText({maxBytes,parsePdb,requireTextFormat,extract,decode},source,encoding);
+          const name=decode(parsePdb(source).name,"auto")||item.file.name;
+          for(const hit of searchBook(name,text,term))results.push({...hit,name,id:item.id,encoding});
+        }catch(e){skipped.push(option.text+"："+e.message)}
+      }
+      results.sort((a,b)=>b.score-a.score);
+      for(const result of results.slice(0,200)){
+        const btn=document.createElement("button");btn.type="button";
+        btn.textContent=result.name+" · "+result.chapter+" — "+result.snippet;
+        btn.onclick=async()=>{try{const item=await shelfAction("readonly",s=>s.get(result.id));el("Encoding").value=result.encoding;await open(item.file);
+          if(!plain)return;query=term;hit=body.startsWith(term,result.offset)?result.offset:-1;el("Query").value=term;showPage(pageFor(result.offset));el("Text").focus();
+        }catch(e){shelfStatus(e.message)}};dest.append(btn);
+      }
+      shelfStatus("找到 "+results.length+" 個章節，顯示前 "+Math.min(results.length,200)+" 筆。"+(skipped.length?"略過："+skipped.join("、"):""));
+    }catch(e){shelfStatus(e.message)}finally{el("SearchAll").disabled=false}
+  };
   let shelfDb=null;
   function shelfStatus(message){el("ShelfStatus").textContent=message}
   async function shelfAction(mode,task){
@@ -1003,7 +1318,7 @@ async function batchBooks(files, reader, encoding, progress = () => {}) {
   }catch{shelfStatus("目前瀏覽器無法儲存書架，仍可直接開啟檔案。")}
   el("SaveBook").onclick=async()=>{
     if(!currentFile)return;
-    const book={id:key,label:(decode(db.name,el("Encoding").value)||filename)+" · "+filename,file:currentFile};
+    const book={id:key,label:shelfLabel(bytes,db,currentFile),file:currentFile};
     try{await shelfAction("readwrite",store=>store.put(book));await refreshShelf(book.id);shelfStatus("已將檔案儲存於書架。")}catch(e){shelfStatus("無法加入書架："+e.message)}
   };
   el("OpenBook").onclick=async()=>{
@@ -1015,7 +1330,7 @@ async function batchBooks(files, reader, encoding, progress = () => {}) {
     const selected=el("ShelfBook"),id=selected.value;if(!id||!window.confirm("從本機書架移除「"+selected.selectedOptions[0].textContent+"」？"))return;
     try{await shelfAction("readwrite",store=>store.delete(id));await refreshShelf();shelfStatus("已從本機書架移除。")}catch(e){shelfStatus(e.message)}
   };
-  el("File").onchange=()=>open(el("File").files[0]);el("Encoding").onchange=()=>{if(plain)renderBody()};
+  el("File").onchange=()=>open(el("File").files[0]);el("Encoding").onchange=()=>{try{localStorage.setItem("pdb-reader-encoding",el("Encoding").value)}catch{}if(plain)renderBody()};
   el("RecordPrev").onclick=()=>{recordPage--;records()};el("RecordNext").onclick=()=>{recordPage++;records()};
   el("Prev").onclick=()=>showPage(page-1);el("Next").onclick=()=>showPage(page+1);
   el("Chapter").onchange=()=>{const at=Number(el("Chapter").value);showPage(pageFor(at));el("Chapter").value=String(at);
@@ -1028,6 +1343,14 @@ async function batchBooks(files, reader, encoding, progress = () => {}) {
   el("Mark").onclick=()=>{if(!marks.includes(page))marks.push(page);marks.sort((a,b)=>a-b);storeMarks();el("Bookmarks").value=String(page)};
   el("Jump").onclick=()=>showPage(Number(el("Bookmarks").value));el("Remove").onclick=()=>{marks=marks.filter(p=>p!==Number(el("Bookmarks").value));storeMarks()};
   el("Edit").onclick=()=>openPalmDraft(title,body);
+  for(const [id,ext] of [["Html","html"],["Epub","epub"]]){
+    el(id).onclick=()=>{try{
+      const book={title,images:sdocImages(bytes,db),author:"",chapters:textChapters(body,originalChapters(bytes,db,plain,el("Encoding").value==="auto"?db.encoding||"auto":el("Encoding").value)).map(c=>({...c,literal:true}))};
+      const output=ext==="html"?new Blob([window.pdbBookFormats.htmlBook(book)],{type:"text/html;charset=utf-8"}):window.pdbBookFormats.epubBook(book);
+      const a=document.createElement("a");a.href=URL.createObjectURL(output);a.download=(title.replace(/[\\/:*?"<>|]/g,"_")||"電子書")+"."+ext;
+      a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000);
+    }catch(e){el("Status").textContent=e.message}};
+  }
   el("Download").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([body],{type:"text/plain;charset=utf-8"}));a.download=(title.replace(/[\\/:*?"<>|]/g,"_")||"PalmDOC")+".txt";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)};
 })();
 </script>
