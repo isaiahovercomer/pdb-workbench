@@ -247,7 +247,117 @@ function palmRecords(bytes, db) {
   for(const b of blocks){result.set(b,offset);offset+=b.length}return result;
 }
 
+/* Inflate one size-bounded zlib record. Palm record headers declare its exact output length. */
+function inflateZlib(input,size){
+  const error=()=>{throw Error('Plucker zlib 記錄損毀。')};
+  if(input.length<6||(input[0]&15)!==8||(input[0]>>>4)>7||((input[0]<<8)+input[1])%31||input[1]&32)error();
+  const out=new Uint8Array(size),end=input.length-4;
+  let pos=2,buffer=0,bits=0,written=0;
+  function read(n){
+    while(bits<n){if(pos>=end)error();buffer|=input[pos++]<<bits;bits+=8}
+    const value=buffer&((1<<n)-1);buffer>>>=n;bits-=n;return value;
+  }
+  function tree(lengths){
+    const counts=new Uint16Array(16),next=new Uint16Array(16),codes=new Map();
+    for(const len of lengths){if(len>15)error();if(len)counts[len]++}
+    let code=0;
+    for(let len=1;len<=15;len++){code=(code+counts[len-1])*2;if(code+counts[len]>(1<<len))error();next[len]=code}
+    lengths.forEach((len,i)=>{if(len)codes.set((1<<len)+next[len]++,i)});
+    return ()=>{
+      let value=1;
+      for(let len=1;len<=15;len++){value=2*value+read(1);if(codes.has(value))return codes.get(value)}
+      error();
+    };
+  }
+  function trees(kind){
+    if(kind===1)return [tree(Array.from({length:288},(_,i)=>i<144?8:i<256?9:i<280?7:8)),tree(Array(32).fill(5))];
+    const literalCount=257+read(5),distanceCount=1+read(5),count=4+read(4);
+    const order=[16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15],lens=Array(19).fill(0);
+    for(let i=0;i<count;i++)lens[order[i]]=read(3);
+    const symbol=tree(lens),lengths=[];
+    while(lengths.length<literalCount+distanceCount){
+      const v=symbol();
+      if(v<16){lengths.push(v);continue}
+      if(v===16&&!lengths.length)error();
+      const n=v===16?3+read(2):v===17?3+read(3):11+read(7);
+      if(lengths.length+n>literalCount+distanceCount)error();
+      lengths.push(...Array(n).fill(v===16?lengths.at(-1):0));
+    }
+    if(!lengths[256])error();
+    return [tree(lengths.slice(0,literalCount)),tree(lengths.slice(literalCount))];
+  }
+  const lengths=[3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258];
+  let final;
+  do{
+    final=read(1);const kind=read(2);
+    if(kind===3)error();
+    if(!kind){
+      bits=buffer=0;const n=read(16);if((n^read(16))!==65535||written+n>size)error();
+      for(let i=0;i<n;i++)out[written++]=read(8);
+      continue;
+    }
+    const [lit,dist]=trees(kind);
+    while(true){
+      const v=lit();if(v===256)break;
+      if(v<256){if(written>=size)error();out[written++]=v;continue}
+      const i=v-257;if(i>=lengths.length)error();
+      const n=lengths[i]+read(i<8||i===28?0:(i>>2)-1),d=dist();if(d>29)error();
+      const extra=Math.max(0,(d>>1)-1),distance=d<4?d+1:1+((2+(d&1))<<extra)+read(extra);
+      if(distance>written||written+n>size)error();
+      for(let j=0;j<n;j++){out[written]=out[written-distance];written++}
+    }
+  }while(!final);
+  let a=1,b=0;for(const x of out){a=(a+x)%65521;b=(b+a)%65521}
+  if(written!==size||pos!==end||input[end]!==b>>>8||input[end+1]!== (b&255)||input[end+2]!==a>>>8||input[end+3]!== (a&255))error();
+  return out;
+}
+function extractPlucker(bytes,db){
+  const records=db.records.map(({start,end})=>bytes.subarray(start,end));
+  const word=(r,p)=>r[p]*256+r[p+1],index=records[0];
+  if(!index||index.length<10||![1,2].includes(word(index,2))||6+4*word(index,4)>index.length)throw Error('Plucker 索引不完整。');
+  const pages=[],utf=new TextEncoder();let total=0;
+  for(const r of records.slice(1)){
+    if(r.length<8||r[6]>1)continue;
+    const count=word(r,2),size=word(r,4),start=8+count*4;
+    if(start>r.length||total+size>maxBytes)throw Error('Plucker 文字記錄長度異常。');
+    let data=r.subarray(start);
+    if(r[6]===1){
+      if(word(index,2)===2)data=inflateZlib(data,size);
+      else{
+        const decoded=new Uint8Array(size);
+        if(inflate(data,decoded,0,size)!==size)throw Error('Plucker 解壓後長度不符。');
+        data=decoded;
+      }
+    }
+    if(data.length!==size)throw Error('Plucker 文字長度不符。');
+    let p=0;const lines=[];
+    for(let i=0;i<count;i++){
+      const end=p+word(r,8+4*i);if(end>data.length)throw Error('Plucker 段落越界。');
+      let text='';
+      while(p<end){
+        const next=data.subarray(p,end).indexOf(0),stop=next<0?end:p+next;
+        if(stop>p)text+=decode(data.subarray(p,stop),'windows-1252');
+        p=stop;if(p===end)break;
+        p++;if(p>=end)throw Error('Plucker 標記不完整。');
+        const code=data[p++],n=code&7;if(p+n>end)throw Error('Plucker 標記長度錯誤。');
+        if(code===131||code===133){
+          const fallback=data[p];let value=0;for(let j=1;j<n;j++)value=value*256+data[p+j];
+          if(value>0x10ffff||p+n+fallback>end)throw Error('Plucker 字元無效。');
+          text+=String.fromCodePoint(value);p+=fallback;
+        }else if(code===56)text+='\n';
+        p+=n;
+      }
+      lines.push(text);
+    }
+    if(p!==size)throw Error('Plucker 段落總長度不符。');
+    const part=utf.encode(lines.join('\n')+'\n');total+=part.length;if(total>maxBytes)throw Error('解碼文字超過上限。');pages.push(part);
+  }
+  if(!pages.length)throw Error('Plucker 沒有可讀文字頁。');
+  db.encoding='utf-8';const out=new Uint8Array(total);let pos=0;for(const p of pages){out.set(p,pos);pos+=p.length}return out;
+}
+
   function extract(bytes,db){
+    if(db.type==="Data"&&db.creator==="Plkr")return extractPlucker(bytes,db);
     if(db.type==="DATA")return palmRecords(bytes,db);
     if(db.type==="SDoc" && db.creator==="SilX") return extractSdoc(bytes,db);
     const head=db.records[0];
@@ -269,6 +379,7 @@ function palmRecords(bytes, db) {
   }
   function requireTextFormat(db){
     if(db.chained) broken("串接式記錄目錄目前僅支援結構檢視。");
+    if(!db.resource&&db.type==="Data"&&db.creator==="Plkr")return;
     if(!db.resource && db.type==="DATA" && ["memo","addr","date","todo"].includes(db.creator))return;
     if(!db.resource && db.type==="SDoc" && db.creator==="SilX") return;
     if(db.resource || db.type!=="TEXt" || db.creator!=="REAd"){

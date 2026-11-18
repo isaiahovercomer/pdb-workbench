@@ -4,7 +4,7 @@ import io
 import json
 from pathlib import Path
 import re
-from zipfile import ZIP_DEFLATED, ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 source = Path(__file__).resolve().parent
 dist = source.parent / 'docs'
@@ -32,11 +32,14 @@ for key,label,name in modules:
         formats=(source.parent/'skills/pdb-workbench/scripts/formats.cjs').read_text(encoding='utf-8')
         fragment=fragment.replace('/* SHARED_BOOK */',formats.split('\n',1)[1].split('module.exports=')[0])
     if name == 'reader':
+        document=(source.parent/'skills/pdb-workbench/scripts/document.cjs').read_text(encoding='utf-8')
+        fragment=fragment.replace('/* SHARED_DOCUMENT */',document.split('// SHARED_DOCUMENT')[1].split('module.exports=')[0])
         reader = (source.parent/'skills/pdb-workbench/scripts/reader.cjs').read_text(encoding='utf-8')
         fragment = fragment.replace('/* SHARED_PDB_READER */',reader.split('module.exports=')[0])
     panels.append(f'<section id="{key}" aria-label="{label}" hidden>\n{fragment}\n</section>')
 page = page.replace('<p class="footer">','\n'.join(panels)+'\n<p class="footer">',1)
 guide = '''<details class="card" style="margin:18px 0"><summary style="cursor:pointer;font-weight:bold">格式、原廠引擎與專案參考</summary><p>PalmDOC 可直接在瀏覽器製作與閱讀。圖文 PDB（SDoc / SilX）可直接閱讀正文與匯出 UTF-8 純文字；寫入及執行 IXL 轉檔設定需使用 Windows 原廠引擎。在 Windows 工作台執行 Run-Project.cmd，可選取 .ixl 和選用的 .ixs，確認目的地後批次轉檔。排程時間寫在 IXL 裡，執行時需要支援排程的原廠程式。</p><p>網頁合訂僅能直接抓取允許瀏覽器讀取的網站。也可以選取已存好的 HTML 資料夾。書架和編輯草稿儲存在目前瀏覽器，請使用匯出功能備份。</p><p>功能研究參考 <a href="https://github.com/jontey/YPSongbook">YPSongbook</a>、<a href="https://github.com/samortiz/ministry">ministry</a>、<a href="https://github.com/jichu4n/palm-pdb">palm-pdb</a>、<a href="https://github.com/atang0925/HarmonyPDB-Next">HarmonyPDB-Next</a> 與 <a href="https://github.com/lxmx/PyPlucker">PyPlucker</a>。工作頁內的功能採獨立實作。</p></details>'''
+guide=guide.replace('</details>','<p><a href="https://isaiahovercomer.github.io/pdb-workbench/pdb-workbench-skill.zip" download>下載 Muse 技能 ZIP</a></p></details>')
 page = page.replace('<p class="footer">',guide+'<p class="footer">',1)
 page = page.replace('const pages=["project","build","inspect"];',
                     'const pages='+json.dumps([key for key,_ in navigation])+';')
@@ -66,3 +69,10 @@ print(f'{len(payload):,} byte companion | {output.stat().st_size:,} byte standal
 
 core = re.findall(r'<script>(.*?)</script>', (source/'base.html').read_text(encoding='utf-8'), re.S)[0]
 (source.parent/'skills/pdb-workbench/scripts/core.cjs').write_text(core+'\nmodule.exports={createProject,writeBook,readHeader,decodeText};\n',encoding='utf-8')
+
+skill=source.parent/'skills'/'pdb-workbench'
+with ZipFile(dist/'pdb-workbench-skill.zip','w') as archive:
+    for item in sorted([skill/'SKILL.md', *skill.glob('scripts/*.cjs'), *skill.glob('scripts/*.py')]):
+        info=ZipInfo('pdb-workbench/'+item.relative_to(skill).as_posix())
+        info.compress_type=ZIP_DEFLATED
+        archive.writestr(info,item.read_bytes())

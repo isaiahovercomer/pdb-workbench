@@ -20,8 +20,8 @@ try {
     if (fs.statSync(input).size > reader.maxBytes) throw Error('檔案上限為 48 MiB。');
     const bytes = fs.readFileSync(input);
     save(output, require('./batch.cjs').bookText(reader,bytes,encoding));
-  } else if (command === 'batch-txt' && args.length >= 2) {
-    require('./batch-cli.cjs').batch(args[0],args.slice(1),'auto').catch(error=>{
+  } else if (['batch-txt','batch-html','batch-epub'].includes(command) && args.length >= 2) {
+    require('./batch-cli.cjs').batch(args[0],args.slice(1),'auto',command.slice(6)).catch(error=>{
       console.error(error.message); process.exitCode=1;
     });
   } else if (command === 'palmdoc' && args.length >= 3 && args.length <= 4) {
@@ -53,6 +53,6 @@ try {
     const [output, title, destination, ...sources] = args;
     save(output, createProject(title, sources.join('\n'), destination, '0', 'include'));
   } else {
-    throw Error('用法請見 SKILL.md，可用命令為 txt、batch-txt、search、plucker、export、palmdoc、inspect、ixl。');
+    throw Error('用法請見 SKILL.md，可用命令為 txt、batch-txt、batch-html、batch-epub、search、plucker、export、palmdoc、inspect、ixl。');
   }
 } catch (error) { console.error(error.message); process.exitCode=1; }

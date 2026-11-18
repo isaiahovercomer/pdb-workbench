@@ -18,9 +18,15 @@ function listBooks(inputs) {
   if (!files.length) throw Error('找不到 PDB 或 PRC 檔案。');
   return files;
 }
-async function batch(output,inputs,encoding){
+async function batch(output,inputs,encoding,format="txt"){
   const files=listBooks(inputs);
-  const result = await batchBooks(files,reader,encoding,(_n,_total,line)=>console.log(line));
+  const formats=require('./formats.cjs');
+  if(!globalThis.crypto)globalThis.crypto=require('node:crypto').webcrypto;
+  const render=(bytes,title,enc,ext)=>{
+    const book=require('./document.cjs').decodedBook(reader,bytes,title,enc);
+    return ext==='html'?formats.htmlBook(book):formats.epubBook(book);
+  };
+  const result = await batchBooks(files,reader,encoding,(_n,_total,line)=>console.log(line),format,render);
   const blob = zip(result.entries,'application/zip');
   const buffer = Buffer.from(await blob.arrayBuffer());
   await fs.promises.writeFile(output,buffer,{flag:'wx'});

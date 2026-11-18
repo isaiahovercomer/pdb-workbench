@@ -9,14 +9,7 @@ function sourceBook(file) {
   const title=path.basename(file,path.extname(file));
   if (/\.(pdb|prc)$/i.test(file)) {
     if(fs.statSync(file).size>reader.maxBytes)throw Error('檔案超過 48 MiB');
-    const bytes=fs.readFileSync(file),db=reader.parsePdb(bytes);
-    reader.requireTextFormat(db);
-    const plain=reader.extract(bytes,db),encoding=db.encoding||'auto';
-    const body=reader.decode(plain,encoding).replace(/\r\n?/g,'\n');
-    const original=originalChapters(bytes,db,plain,encoding);
-    const book={title,images:require('./images.cjs').sdocImages(bytes,db),author:'',chapters:textChapters(body,original).map(c=>({...c,literal:true}))};
-    require('./layout.cjs').sdocLayout(bytes,db,plain,encoding,book.chapters,book.images);
-    return book;
+    return require('./document.cjs').decodedBook(reader,fs.readFileSync(file),title);
   }
   const text=fs.readFileSync(file,'utf8');
   if(/\.json$/i.test(file)){
