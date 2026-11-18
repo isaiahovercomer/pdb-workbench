@@ -2,6 +2,8 @@
   <h2>PDB 轉純文字與閱讀</h2>
   <div class="twocol"><div><label for="pdrFile">開啟本機 PDB 或 PRC</label><input id="pdrFile" type="file" accept=".pdb,.prc"></div><div><label for="pdrEncoding">文字編碼</label><select id="pdrEncoding"><option value="auto">自動判讀</option><option value="big5">繁體中文 Big5</option><option value="utf-8">UTF-8</option><option value="gb18030">簡體中文 GB18030</option><option value="windows-1252">西歐文字</option></select></div></div>
   <p class="status" id="pdrStatus" role="status">選取 SDoc 或 PalmDOC 電子書即可預覽全文並下載 UTF-8 純文字。若中文字顯示異常，可切換為 Big5。</p>
+  <details><summary>批次轉 TXT</summary><div class="twocol"><label>選取多本電子書<input id="pdrBatchFiles" type="file" accept=".pdb,.prc" multiple></label><label>或選取整個資料夾<input id="pdrBatchFolder" type="file" webkitdirectory multiple></label></div>
+  <div class="pdr-actions"><button id="pdrBatchGo" type="button" disabled>開始批次轉檔</button><a id="pdrBatchZip" hidden download="PDB純文字.zip">下載 ZIP 與轉檔清單</a></div><p id="pdrBatchStatus" role="status"></p><pre id="pdrBatchLog" style="white-space:pre-wrap;max-height:14em;overflow:auto"></pre></details>
   <details id="pdrShelf"><summary>本機書架</summary><div class="pdr-actions"><button type="button" id="pdrSaveBook" disabled>將目前檔案加入書架</button><select id="pdrShelfBook" aria-label="已儲存的書籍"></select><button type="button" id="pdrOpenBook" disabled>開啟藏書</button><button type="button" id="pdrDeleteBook" disabled>移出書架</button></div><p id="pdrShelfStatus" class="note" role="status">書籍儲存在目前使用的瀏覽器。</p></details>
   <details hidden id="pdrDiagnostics"><summary>檔案結構與記錄</summary><dl id="pdrStats"></dl><div class="pdr-actions"><button type="button" id="pdrRecordPrev">前 50 筆</button><span id="pdrRecordRange"></span><button type="button" id="pdrRecordNext">後 50 筆</button></div>
   <div class="pdr-table"><table><thead><tr><th>記錄編號</th><th>檔案位置</th><th>長度（位元組）</th><th>記錄識別碼</th></tr></thead><tbody id="pdrRecords"></tbody></table></div></details>
@@ -22,6 +24,33 @@
   const root=document.getElementById("pdr");
   const el=id=>root.querySelector("#pdr"+id);
   /* SHARED_PDB_READER */
+  /* SHARED_ZIP */
+  /* SHARED_BATCH */
+  const batchInputs=[el("BatchFiles"),el("BatchFolder")];
+  let selectedBooks=[], batchUrl;
+  for(const input of batchInputs) input.onchange=()=>{
+    for(const other of batchInputs) if(other!==input) other.value="";
+    selectedBooks=Array.from(input.files).filter(f=>/\.(pdb|prc)$/i.test(f.name));
+    el("BatchGo").disabled=!selectedBooks.length;
+    el("BatchStatus").textContent="已選取 "+selectedBooks.length+" 本電子書";
+    el("BatchLog").replaceChildren(); el("BatchZip").hidden=true;
+    if(batchUrl) URL.revokeObjectURL(batchUrl);
+  };
+  el("BatchGo").onclick=async()=>{
+    el("BatchGo").disabled=true; batchInputs.forEach(i=>i.disabled=true);
+    el("BatchLog").replaceChildren(); el("BatchZip").hidden=true;
+    if(batchUrl) URL.revokeObjectURL(batchUrl);
+    try {
+      const files=selectedBooks.map(f=>({name:f.webkitRelativePath||f.name,size:f.size,load:async()=>new Uint8Array(await f.arrayBuffer())}));
+      const result=await batchBooks(files,{maxBytes,parsePdb,requireTextFormat,extract,decode},el("Encoding").value,(n,total,line)=>{
+        el("BatchStatus").textContent=n+" / "+total; el("BatchLog").append(line+"\n");
+      });
+      batchUrl=URL.createObjectURL(zip(result.entries,"application/zip"));
+      el("BatchZip").href=batchUrl;el("BatchZip").hidden=false;
+      el("BatchStatus").textContent=result.summary;
+    }catch(e){el("BatchStatus").textContent=e.message}
+    finally{el("BatchGo").disabled=false;batchInputs.forEach(i=>i.disabled=false)}
+  };
   const pageSize=2400;
   let bytes,db,plain,currentFile,filename="",ticket=0,title="",body="",page=0,recordPage=0,key="",marks=[],chapters=[],hit=-1,query="",pageStarts=[];
   function options(select,rows){select.replaceChildren(...rows.map(([label,value])=>new Option(label,String(value))))}

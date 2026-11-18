@@ -314,16 +314,19 @@ const bookCss='body{max-width:48em;margin:1em auto;padding:1em;font-family:serif
 function htmlBook(b){return '<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+safeXml(b.title)+'</title><style>'+bookCss+'</style><main><h1>'+safeXml(b.title)+'</h1><p>'+safeXml(b.author)+'</p><nav id="toc"><h2>目錄</h2><ol>'+b.chapters.map((c,i)=>'<li><a href="#c'+i+'">'+safeXml(heading(c,i))+'</a></li>').join('')+'</ol></nav>'+b.chapters.map((c,i)=>'<section id="c'+i+'">'+chapter(c,i)+'<p><a href="#toc">回目錄</a></p></section>').join('')+'</main></html>'}
 const crcTable=Uint32Array.from({length:256},(_,i)=>{for(let j=0;j<8;j++)i=i&1?(i>>>1)^0xedb88320:i>>>1;return i>>>0});
 function zip(entries,mime='application/epub+zip'){
+ const enc=new TextEncoder();
+ if(entries.length>65535)throw Error('ZIP 檔案數超過上限。');
  const files=[],directory=[];let offset=0,centralSize=0;
  function header(n){const data=new Uint8Array(n),view=new DataView(data.buffer);return {data,u16:(p,v)=>view.setUint16(p,v,true),u32:(p,v)=>view.setUint32(p,v,true)}}
  for(const [name,content] of entries){
-  const path=enc.encode(name),data=enc.encode(content);let crc=0xffffffff;for(const b of data)crc=(crc>>>8)^crcTable[(crc^b)&255];crc=(crc^0xffffffff)>>>0;
-  const l=header(30);l.u32(0,0x04034b50);l.u16(4,20);l.u16(12,33);l.u32(14,crc);l.u32(18,data.length);l.u32(22,data.length);l.u16(26,path.length);files.push(l.data,path,data);
-  const d=header(46);d.u32(0,0x02014b50);d.u16(4,20);d.u16(6,20);d.u16(14,33);d.u32(16,crc);d.u32(20,data.length);d.u32(24,data.length);d.u16(28,path.length);d.u32(42,offset);directory.push(d.data,path);centralSize+=46+path.length;offset+=30+path.length+data.length;
+  const path=enc.encode(name),data=typeof content==="string"?enc.encode(content):content;let crc=0xffffffff;for(const b of data)crc=(crc>>>8)^crcTable[(crc^b)&255];crc=(crc^0xffffffff)>>>0;
+  const l=header(30);l.u32(0,0x04034b50);l.u16(4,20);l.u16(6,2048);l.u16(12,33);l.u32(14,crc);l.u32(18,data.length);l.u32(22,data.length);l.u16(26,path.length);files.push(l.data,path,data);
+  const d=header(46);d.u32(0,0x02014b50);d.u16(4,20);d.u16(6,20);d.u16(8,2048);d.u16(14,33);d.u32(16,crc);d.u32(20,data.length);d.u32(24,data.length);d.u16(28,path.length);d.u32(42,offset);directory.push(d.data,path);centralSize+=46+path.length;offset+=30+path.length+data.length;
   if(offset+centralSize>=0xffffffff)throw Error('書籍超過 ZIP 容量。');
  }
  const end=header(22);end.u32(0,0x06054b50);end.u16(8,entries.length);end.u16(10,entries.length);end.u32(12,centralSize);end.u32(16,offset);return new Blob([...files,...directory,end.data],{type:mime});
 }
+
 function epubBook(b){
  const xml='<?xml version="1.0" encoding="UTF-8"?>',uuid='urn:uuid:'+crypto.randomUUID(),title=safeXml(b.title);
  const page=(t,body)=>xml+'<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="zh-Hant" lang="zh-Hant"><head><title>'+t+'</title><link href="book.css" rel="stylesheet" type="text/css"/></head><body>'+body+'</body></html>';
@@ -574,6 +577,8 @@ get('go').onclick=async()=>{
   <h2>PDB 轉純文字與閱讀</h2>
   <div class="twocol"><div><label for="pdrFile">開啟本機 PDB 或 PRC</label><input id="pdrFile" type="file" accept=".pdb,.prc"></div><div><label for="pdrEncoding">文字編碼</label><select id="pdrEncoding"><option value="auto">自動判讀</option><option value="big5">繁體中文 Big5</option><option value="utf-8">UTF-8</option><option value="gb18030">簡體中文 GB18030</option><option value="windows-1252">西歐文字</option></select></div></div>
   <p class="status" id="pdrStatus" role="status">選取 SDoc 或 PalmDOC 電子書即可預覽全文並下載 UTF-8 純文字。若中文字顯示異常，可切換為 Big5。</p>
+  <details><summary>批次轉 TXT</summary><div class="twocol"><label>選取多本電子書<input id="pdrBatchFiles" type="file" accept=".pdb,.prc" multiple></label><label>或選取整個資料夾<input id="pdrBatchFolder" type="file" webkitdirectory multiple></label></div>
+  <div class="pdr-actions"><button id="pdrBatchGo" type="button" disabled>開始批次轉檔</button><a id="pdrBatchZip" hidden download="PDB純文字.zip">下載 ZIP 與轉檔清單</a></div><p id="pdrBatchStatus" role="status"></p><pre id="pdrBatchLog" style="white-space:pre-wrap;max-height:14em;overflow:auto"></pre></details>
   <details id="pdrShelf"><summary>本機書架</summary><div class="pdr-actions"><button type="button" id="pdrSaveBook" disabled>將目前檔案加入書架</button><select id="pdrShelfBook" aria-label="已儲存的書籍"></select><button type="button" id="pdrOpenBook" disabled>開啟藏書</button><button type="button" id="pdrDeleteBook" disabled>移出書架</button></div><p id="pdrShelfStatus" class="note" role="status">書籍儲存在目前使用的瀏覽器。</p></details>
   <details hidden id="pdrDiagnostics"><summary>檔案結構與記錄</summary><dl id="pdrStats"></dl><div class="pdr-actions"><button type="button" id="pdrRecordPrev">前 50 筆</button><span id="pdrRecordRange"></span><button type="button" id="pdrRecordNext">後 50 筆</button></div>
   <div class="pdr-table"><table><thead><tr><th>記錄編號</th><th>檔案位置</th><th>長度（位元組）</th><th>記錄識別碼</th></tr></thead><tbody id="pdrRecords"></tbody></table></div></details>
@@ -811,6 +816,78 @@ function extractSdoc(bytes, db) {
     }
   }
 
+  const crcTable=Uint32Array.from({length:256},(_,i)=>{for(let j=0;j<8;j++)i=i&1?(i>>>1)^0xedb88320:i>>>1;return i>>>0});
+function zip(entries,mime='application/epub+zip'){
+ const enc=new TextEncoder();
+ if(entries.length>65535)throw Error('ZIP 檔案數超過上限。');
+ const files=[],directory=[];let offset=0,centralSize=0;
+ function header(n){const data=new Uint8Array(n),view=new DataView(data.buffer);return {data,u16:(p,v)=>view.setUint16(p,v,true),u32:(p,v)=>view.setUint32(p,v,true)}}
+ for(const [name,content] of entries){
+  const path=enc.encode(name),data=typeof content==="string"?enc.encode(content):content;let crc=0xffffffff;for(const b of data)crc=(crc>>>8)^crcTable[(crc^b)&255];crc=(crc^0xffffffff)>>>0;
+  const l=header(30);l.u32(0,0x04034b50);l.u16(4,20);l.u16(6,2048);l.u16(12,33);l.u32(14,crc);l.u32(18,data.length);l.u32(22,data.length);l.u16(26,path.length);files.push(l.data,path,data);
+  const d=header(46);d.u32(0,0x02014b50);d.u16(4,20);d.u16(6,20);d.u16(8,2048);d.u16(14,33);d.u32(16,crc);d.u32(20,data.length);d.u32(24,data.length);d.u16(28,path.length);d.u32(42,offset);directory.push(d.data,path);centralSize+=46+path.length;offset+=30+path.length+data.length;
+  if(offset+centralSize>=0xffffffff)throw Error('書籍超過 ZIP 容量。');
+ }
+ const end=header(22);end.u32(0,0x06054b50);end.u16(8,entries.length);end.u16(10,entries.length);end.u32(12,centralSize);end.u32(16,offset);return new Blob([...files,...directory,end.data],{type:mime});
+}
+
+  function bookText(reader, bytes, encoding) {
+  if (bytes.length > reader.maxBytes) throw Error('單本檔案上限為 48 MiB。');
+  const db = reader.parsePdb(bytes);
+  reader.requireTextFormat(db);
+  const plain = reader.extract(bytes, db);
+  const selected = encoding === 'auto' ? db.encoding || 'auto' : encoding;
+  return reader.decode(plain, selected).replace(/\r\n?/g, '\n');
+}
+async function batchBooks(files, reader, encoding, progress = () => {}) {
+  const entries = [], report = [], used = new Set(['轉檔清單.txt']);
+  for (const file of files) {
+    let line;
+    try {
+      if (file.size > reader.maxBytes) throw Error('單本檔案上限為 48 MiB。');
+      const text = bookText(reader, await file.load(), encoding);
+      let stem = file.name.split(/[\\/]/).pop().replace(/\.(pdb|prc)$/i,'').normalize('NFC')
+        .replace(/[<>:"|?*\x00-\x1f]/g,'_').replace(/[. ]+$/,'').slice(0,110) || '書籍';
+      if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i.test(stem)) stem = '_'+stem;
+      let name = stem+'.txt', index = 1;
+      while (used.has(name.toLowerCase())) name = stem+' ('+(++index)+').txt';
+      used.add(name.toLowerCase());
+      entries.push([name,new TextEncoder().encode(text)]);
+      line = '成功　'+file.name+' → '+name;
+    } catch (error) { line = '失敗　'+file.name+'　'+error.message; }
+    report.push(line);
+    progress(report.length, files.length, line);
+  }
+  const summary = '成功 '+entries.length+' 本，失敗 '+(files.length-entries.length)+' 本';
+  entries.push(['轉檔清單.txt',summary+'\n\n'+report.join('\n')+'\n']);
+  return {entries, summary, succeeded:entries.length-1};
+}
+
+  const batchInputs=[el("BatchFiles"),el("BatchFolder")];
+  let selectedBooks=[], batchUrl;
+  for(const input of batchInputs) input.onchange=()=>{
+    for(const other of batchInputs) if(other!==input) other.value="";
+    selectedBooks=Array.from(input.files).filter(f=>/\.(pdb|prc)$/i.test(f.name));
+    el("BatchGo").disabled=!selectedBooks.length;
+    el("BatchStatus").textContent="已選取 "+selectedBooks.length+" 本電子書";
+    el("BatchLog").replaceChildren(); el("BatchZip").hidden=true;
+    if(batchUrl) URL.revokeObjectURL(batchUrl);
+  };
+  el("BatchGo").onclick=async()=>{
+    el("BatchGo").disabled=true; batchInputs.forEach(i=>i.disabled=true);
+    el("BatchLog").replaceChildren(); el("BatchZip").hidden=true;
+    if(batchUrl) URL.revokeObjectURL(batchUrl);
+    try {
+      const files=selectedBooks.map(f=>({name:f.webkitRelativePath||f.name,size:f.size,load:async()=>new Uint8Array(await f.arrayBuffer())}));
+      const result=await batchBooks(files,{maxBytes,parsePdb,requireTextFormat,extract,decode},el("Encoding").value,(n,total,line)=>{
+        el("BatchStatus").textContent=n+" / "+total; el("BatchLog").append(line+"\n");
+      });
+      batchUrl=URL.createObjectURL(zip(result.entries,"application/zip"));
+      el("BatchZip").href=batchUrl;el("BatchZip").hidden=false;
+      el("BatchStatus").textContent=result.summary;
+    }catch(e){el("BatchStatus").textContent=e.message}
+    finally{el("BatchGo").disabled=false;batchInputs.forEach(i=>i.disabled=false)}
+  };
   const pageSize=2400;
   let bytes,db,plain,currentFile,filename="",ticket=0,title="",body="",page=0,recordPage=0,key="",marks=[],chapters=[],hit=-1,query="",pageStarts=[];
   function options(select,rows){select.replaceChildren(...rows.map(([label,value])=>new Option(label,String(value))))}

@@ -7,6 +7,8 @@ description: 讀取 SDoc / SilX 圖文 PDB 與 PalmDOC PDB 正文並轉成 UTF-8
 
 使用 Node.js 18 或更新版本，從本技能所在資料夾執行命令。將範例中的路徑換成使用者實際提供的路徑，保留繁體中文原文。
 
+- 多本電子書或整個資料夾轉純文字時，執行 `node scripts/run.cjs batch-txt "電子書.zip" "藏書資料夾"`。也可以列出多個來源檔案或目錄。交付 ZIP 與其中的轉檔清單；結束碼 2 表示有個別檔案失敗，成功項目仍在 ZIP 內。
+
 - 收到「把 PDB 轉成純文字」的要求時，執行下列命令，完成後交付整本 TXT。支援 SDoc 正文區塊及 PalmDOC 壓縮。若預覽中文有誤，可指定 big5 或 utf-8，並另選輸出檔名。
 
   `node scripts/run.cjs txt "電子書.pdb" "電子書.txt" auto`

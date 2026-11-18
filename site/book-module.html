@@ -56,18 +56,7 @@ for(const [k,d] of [['up',-1],['down',1]])ui[k].onclick=()=>{const next=active+d
 ui.remove.onclick=()=>{if(!confirm('移除「'+heading(book.chapters[active],active)+'」？'))return;book.chapters.splice(active,1);if(!book.chapters.length)book.chapters.push(blank());active=Math.min(active,book.chapters.length-1);render();store()};
 const bookCss='body{max-width:48em;margin:1em auto;padding:1em;font-family:serif;line-height:1.75;color:#213f38}h1,h2{line-height:1.4}.bookVerse,.bookFoot{white-space:pre-wrap;overflow-wrap:anywhere}.bookPair{display:inline-flex;flex-direction:column;vertical-align:bottom}.bookChord{font:bold .8em/1.25 monospace;color:#775020}.bookFoot{border-top:1px solid #ccc;padding-top:.7em}section{margin:2em 0;break-before:page}a{color:#17584c}';
 function htmlBook(b){return '<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+safeXml(b.title)+'</title><style>'+bookCss+'</style><main><h1>'+safeXml(b.title)+'</h1><p>'+safeXml(b.author)+'</p><nav id="toc"><h2>目錄</h2><ol>'+b.chapters.map((c,i)=>'<li><a href="#c'+i+'">'+safeXml(heading(c,i))+'</a></li>').join('')+'</ol></nav>'+b.chapters.map((c,i)=>'<section id="c'+i+'">'+chapter(c,i)+'<p><a href="#toc">回目錄</a></p></section>').join('')+'</main></html>'}
-const crcTable=Uint32Array.from({length:256},(_,i)=>{for(let j=0;j<8;j++)i=i&1?(i>>>1)^0xedb88320:i>>>1;return i>>>0});
-function zip(entries,mime='application/epub+zip'){
- const files=[],directory=[];let offset=0,centralSize=0;
- function header(n){const data=new Uint8Array(n),view=new DataView(data.buffer);return {data,u16:(p,v)=>view.setUint16(p,v,true),u32:(p,v)=>view.setUint32(p,v,true)}}
- for(const [name,content] of entries){
-  const path=enc.encode(name),data=enc.encode(content);let crc=0xffffffff;for(const b of data)crc=(crc>>>8)^crcTable[(crc^b)&255];crc=(crc^0xffffffff)>>>0;
-  const l=header(30);l.u32(0,0x04034b50);l.u16(4,20);l.u16(12,33);l.u32(14,crc);l.u32(18,data.length);l.u32(22,data.length);l.u16(26,path.length);files.push(l.data,path,data);
-  const d=header(46);d.u32(0,0x02014b50);d.u16(4,20);d.u16(6,20);d.u16(14,33);d.u32(16,crc);d.u32(20,data.length);d.u32(24,data.length);d.u16(28,path.length);d.u32(42,offset);directory.push(d.data,path);centralSize+=46+path.length;offset+=30+path.length+data.length;
-  if(offset+centralSize>=0xffffffff)throw Error('書籍超過 ZIP 容量。');
- }
- const end=header(22);end.u32(0,0x06054b50);end.u16(8,entries.length);end.u16(10,entries.length);end.u32(12,centralSize);end.u32(16,offset);return new Blob([...files,...directory,end.data],{type:mime});
-}
+/* SHARED_ZIP */
 function epubBook(b){
  const xml='<?xml version="1.0" encoding="UTF-8"?>',uuid='urn:uuid:'+crypto.randomUUID(),title=safeXml(b.title);
  const page=(t,body)=>xml+'<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="zh-Hant" lang="zh-Hant"><head><title>'+t+'</title><link href="book.css" rel="stylesheet" type="text/css"/></head><body>'+body+'</body></html>';
