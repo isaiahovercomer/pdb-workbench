@@ -1,17 +1,17 @@
 ---
 name: pdb-workbench
-description: 讀取 PalmDOC PDB 正文並轉成 UTF-8 純文字、製作 Big5 或 UTF-8 PalmDOC 電子書、辨識 Palm PDB/PRC 檔頭、生成繁中 PDB 轉檔專案。在 Muse 或其他支援 Agent Skills 的代理收到 PDB、繁中電子書或書報製作需求時使用。
+description: 讀取 SDoc / SilX 圖文 PDB 與 PalmDOC PDB 正文並轉成 UTF-8 純文字、製作 Big5 或 UTF-8 PalmDOC 電子書、辨識 Palm PDB/PRC 檔頭、生成繁中 PDB 轉檔專案。在 Muse 或其他支援 Agent Skills 的代理收到 PDB、繁中電子書或書報製作需求時使用。
 ---
 
 # PDB 電子書工作台
 
 使用 Node.js 18 或更新版本，從本技能所在資料夾執行命令。將範例中的路徑換成使用者實際提供的路徑，保留繁體中文原文。
 
-- 收到「把 PDB 轉成純文字」的要求時，執行下列命令，完成後交付整本 TXT。支援未壓縮與 PalmDOC 壓縮。若預覽中文有誤，可指定 big5 或 utf-8，並另選輸出檔名。
+- 收到「把 PDB 轉成純文字」的要求時，執行下列命令，完成後交付整本 TXT。支援 SDoc 正文區塊及 PalmDOC 壓縮。若預覽中文有誤，可指定 big5 或 utf-8，並另選輸出檔名。
 
   `node scripts/run.cjs txt "電子書.pdb" "電子書.txt" auto`
 
-  若辨識為 SDoc / SilX，且 Muse 能操作已安裝的相容 Windows 閱讀器，請開啟該檔，使用 File → Save As 輸出文字並核對內容。若該命令停用或閱讀器不可用，回報原因。
+  SDoc 使用相同命令，無需 Windows 閱讀器。保留文字與換行，圖片不含在 TXT 中。若遇到受保護、無法驗證或不支援的檔案，傳達命令回報的原因。
 
 - 將 UTF-8 或 Big5 文字檔轉成 PalmDOC。第三個參數是書名，第四個參數是輸出編碼。轉檔後執行 inspect 核對 TEXt / REAd。
 

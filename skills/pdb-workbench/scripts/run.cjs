@@ -16,13 +16,13 @@ try {
   } else if (command === 'txt' && (args.length === 2 || args.length === 3)) {
     const [input, output, encoding='auto'] = args;
     const reader = require('./reader.cjs');
-    if (!['auto','utf-8','big5','windows-1252'].includes(encoding)) throw Error('不支援的文字編碼');
+    if (!['auto','utf-8','big5','gb18030','windows-1252'].includes(encoding)) throw Error('不支援的文字編碼');
     if (fs.statSync(input).size > reader.maxBytes) throw Error('檔案上限為 48 MiB。');
     const bytes = fs.readFileSync(input);
     const db = reader.parsePdb(bytes);
     reader.requireTextFormat(db);
     const plain = reader.extract(bytes, db);
-    save(output, reader.decode(plain, encoding).replace(/\r\n?/g,'\n'));
+    save(output, reader.decode(plain, encoding === 'auto' ? db.encoding || 'auto' : encoding).replace(/\r\n?/g,'\n'));
   } else if (command === 'palmdoc' && args.length >= 3 && args.length <= 4) {
     const [input, output, title, encoding='utf-8'] = args;
     if (!['utf-8','big5'].includes(encoding)) throw Error('輸出編碼可選 utf-8 或 big5');

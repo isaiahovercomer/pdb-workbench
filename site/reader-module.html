@@ -1,7 +1,7 @@
 <section class="card" id="pdr">
   <h2>PDB 轉純文字與閱讀</h2>
-  <div class="twocol"><div><label for="pdrFile">開啟本機 PDB 或 PRC</label><input id="pdrFile" type="file" accept=".pdb,.prc"></div><div><label for="pdrEncoding">文字編碼</label><select id="pdrEncoding"><option value="auto">自動判讀</option><option value="big5">繁體中文 Big5</option><option value="utf-8">UTF-8</option><option value="windows-1252">西歐文字</option></select></div></div>
-  <p class="status" id="pdrStatus" role="status">選取 PalmDOC 電子書即可預覽全文並下載 UTF-8 純文字。若中文字顯示異常，可切換為 Big5。</p>
+  <div class="twocol"><div><label for="pdrFile">開啟本機 PDB 或 PRC</label><input id="pdrFile" type="file" accept=".pdb,.prc"></div><div><label for="pdrEncoding">文字編碼</label><select id="pdrEncoding"><option value="auto">自動判讀</option><option value="big5">繁體中文 Big5</option><option value="utf-8">UTF-8</option><option value="gb18030">簡體中文 GB18030</option><option value="windows-1252">西歐文字</option></select></div></div>
+  <p class="status" id="pdrStatus" role="status">選取 SDoc 或 PalmDOC 電子書即可預覽全文並下載 UTF-8 純文字。若中文字顯示異常，可切換為 Big5。</p>
   <details id="pdrShelf"><summary>本機書架</summary><div class="pdr-actions"><button type="button" id="pdrSaveBook" disabled>將目前檔案加入書架</button><select id="pdrShelfBook" aria-label="已儲存的書籍"></select><button type="button" id="pdrOpenBook" disabled>開啟藏書</button><button type="button" id="pdrDeleteBook" disabled>移出書架</button></div><p id="pdrShelfStatus" class="note" role="status">書籍儲存在目前使用的瀏覽器。</p></details>
   <details hidden id="pdrDiagnostics"><summary>檔案結構與記錄</summary><dl id="pdrStats"></dl><div class="pdr-actions"><button type="button" id="pdrRecordPrev">前 50 筆</button><span id="pdrRecordRange"></span><button type="button" id="pdrRecordNext">後 50 筆</button></div>
   <div class="pdr-table"><table><thead><tr><th>記錄編號</th><th>檔案位置</th><th>長度（位元組）</th><th>記錄識別碼</th></tr></thead><tbody id="pdrRecords"></tbody></table></div></details>
@@ -62,7 +62,7 @@
   }
   function renderBody(){
     title=decode(db.name,el("Encoding").value)||filename;
-    body=decode(plain,el("Encoding").value).replace(/\r\n?/g,"\n");
+    body=decode(plain,el("Encoding").value==="auto" ? db.encoding || "auto" : el("Encoding").value).replace(/\r\n?/g,"\n");
     pageStarts=[0];for(let i=pageSize;i<body.length;i+=pageSize){
       if(body.charCodeAt(i)>=0xdc00&&body.charCodeAt(i)<=0xdfff)i++;
       if(i<body.length)pageStarts.push(i);
@@ -94,7 +94,7 @@
       records();el("Diagnostics").hidden=false;
       try{requireTextFormat(db)}catch(error){el("Diagnostics").open=true;throw error}
       plain=extract(b,db);
-      el("Reading").hidden=false;renderBody();el("Status").textContent="PalmDOC 正文已載入。";
+      el("Reading").hidden=false;renderBody();el("Status").textContent=(db.type==="SDoc"?"SDoc":"PalmDOC")+" 全書正文已載入。";
     }catch(e){el("Status").textContent=e.message;el("Reading").hidden=true}
   }
   function find(next){
