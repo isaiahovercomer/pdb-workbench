@@ -25,6 +25,69 @@ function sdocLayout(bytes,db,plain,encoding,chapters,images){
     const out=[];for(let p=12;p+8<=r.length&&out.length<=u16(r,8);p+=8)out.push(u16(r,p+6));return out;
   });
   const picturesByRecord=new Map(images.map((x,i)=>[x.recordIndex,i]));
+  // Multi-part figures store their full dimensions in the figure descriptor.
+  const groups=new Map();
+  for(const r of parts(5,0)){
+    for(let p=14,i=0;p+8<=r.length&&i<=u16(r,8);p+=8,i++){
+      if(r[p]!==17)continue;
+      const width=r[p+2],height=r[p+3],start=u16(r,p+4),tiles=[];
+      let y=0;
+      for(let id=start;y<height&&id<records.length;id++){
+        const tile=records[id],img=picturesByRecord.get(id);
+        if(tile?.[1]!==4||img===undefined||u16(tile,4)!==width||!u16(tile,6))break;
+        tiles.push(img);y+=u16(tile,6);
+      }
+      if(y===height&&tiles.length>1)groups.set(picturesByRecord.get(start),{width,height,tiles});
+    }
+  }
+  const maps=[];
+  for(const r of records){
+    if(r[1]!==17||r[4]!==8||r.length<14||r[12]!==r.length-13)continue;
+    const areas=[];let p=13;
+    while(p<r.length){
+      const tag=r[p++],shape=tag&15;
+      if(![1,2,3].includes(shape)||(tag&224))break;
+      let target=null;
+      if(tag&16){if(p+4>r.length)break;target=u32(r,p);p+=4;if(target>=plain.length)break}
+      let n=shape===1?4:3;
+      if(shape===3){n=2*r[p++];if(n<6)break}
+      const maskBytes=Math.ceil(n/8);
+      if(p+maskBytes>r.length||r.subarray(p,p+maskBytes).some(x=>x!==0))break;
+      p+=maskBytes;const coords=[];
+      while(coords.length<n&&p<r.length){
+        const v=r[p++];if(v<128)coords.push(v);
+        else if(p<r.length)coords.push((v-128)*256+r[p++]);
+      }
+      if(coords.length!==n)break;
+      if(target!==null)areas.push({shape,coords,target,label:at(target,Math.min(plain.length,target+160)).split('\n')[0].slice(0,80)});
+    }
+    if(p===r.length&&areas.length)maps.push(areas);
+  }
+  if(maps.length===1){
+    const a=maps[0],fits=[...groups.values()].filter(g=>a.every(({shape,coords})=>coords.every((n,i)=>shape===2&&i===2?n<=Math.min(g.width,g.height):n<=(i%2?g.height:g.width))));
+    if(fits.length===1){fits[0].areas=a;for(const area of a)targets.add(area.target)}
+  }
+  const menus=[];
+  try{
+    const pack=typeof module==='object'&&module.exports?require('./reader.cjs').sdocResource(bytes,db):sdocResource(bytes,db);
+    if(pack&&pack.length>=12&&u32(pack,0)===pack.length){
+      const base=u32(pack,8);
+      for(const r of parts(12,0)){
+        for(let i=0;i<=u16(r,8)&&18+4*i<=r.length;i++){
+          const p=base+u16(r,16+4*i),count=u32(pack,p),strings=u32(pack,p+4),finish=p+8+strings;
+          if(!count||count>1000||finish+4>pack.length)break;
+          const labels=decode.decode(pack.subarray(p+8,finish)).split('\0'),linked=u32(pack,finish);
+          if(labels.length<count+1||linked>count||finish+4+linked*4>pack.length)break;
+          const items=[];
+          for(let k=0;k<count;k++){
+            const to=k<linked?u32(pack,finish+4+4*k):null;
+            items.push({label:labels[k+1],target:to!==null&&to<plain.length?to:null});
+          }
+          menus.push({label:labels[0]||items[0].label,items});
+        }
+      }
+    }
+  }catch{}
   function readTable(start,end,id){
     const entry=tables[id];if(!entry||entry[0]!==3)return;
     const g=geometry[entry[1]],cells=records[u16(entry,2)];
@@ -86,6 +149,18 @@ function sdocLayout(bytes,db,plain,encoding,chapters,images){
       }
     }
     if(r[5]===3&&r[6]===13){
+      if(menus.length&&menus.length<=n&&data+2*n<=r.length){
+        const placed=[];let offset=last-1;
+        for(let j=n-1;j>=n-menus.length;j--){
+          const id=j-(n-menus.length);
+          if(offset<first||plain[offset]!==10||u16(r,data+2*j)!==(32768+id))break;
+          placed.push({kind:'menu',start:offset,end:offset+1,menu:menus[id]});
+          if(j>0)offset-=1+r[19+j];
+        }
+        if(placed.length===menus.length)for(const e of placed){
+          elements.push(e);for(const item of e.menu.items)if(item.target!==null)targets.add(item.target);
+        }
+      }
       let pos=first,priorFigure=-1;
       for(let i=0;i<n&&data+i*2+2<=r.length;i++){
         const value=u16(r,data+2*i);
@@ -102,7 +177,7 @@ function sdocLayout(bytes,db,plain,encoding,chapters,images){
             pos=found;
           }
           const img=picturesByRecord.get(figures[value&32767]);
-          if(img!==undefined)elements.push({kind:'image',start:pos,end:pos+1,img});
+          if(img!==undefined)elements.push({kind:'image',start:pos,end:pos+1,img,group:groups.get(img)});
         }
         pos+=1+r[20+i];
       }
@@ -113,11 +188,17 @@ function sdocLayout(bytes,db,plain,encoding,chapters,images){
   let prior=0,chars=0;const offsets=new Map();
   for(const i of [...indices].sort((a,b)=>a-b)){chars+=at(prior,i).length;offsets.set(i,chars);prior=i}
   const chapterAt=p=>{let lo=0,hi=chapters.length;while(lo+1<hi){const m=(lo+hi)>>1;if(chapters[m].start<=p)lo=m;else hi=m}return lo};
-  for(const target of targets)elements.push({kind:'anchor',start:target,end:target,target,note:footnotes.has(target)});
+  const references=new Map();
+  for(const e of elements)if(e.kind==='link'&&e.note){
+    e.source=e.start;const refs=references.get(e.target)||[];refs.push({source:e.start,page:chapterAt(offsets.get(e.start))});references.set(e.target,refs);
+  }
+  for(const target of targets)elements.push({kind:'anchor',start:target,end:target,target,note:footnotes.has(target),references:references.get(target)});
   for(const e of elements){
     const idx=chapterAt(offsets.get(e.start)),c=chapters[idx],rel=p=>offsets.get(p)-c.start;
     if(rel(e.end)>c.body.length)continue;
     if(e.rows)for(const row of e.rows)for(const cell of row){cell.start=rel(cell.start);cell.end=rel(cell.end)}
+    if(e.menu)for(const item of e.menu.items)if(item.target!==null)item.page=chapterAt(offsets.get(item.target));
+    if(e.group?.areas)for(const area of e.group.areas)area.page=chapterAt(offsets.get(area.target));
     if(e.kind==='link')e.page=chapterAt(offsets.get(e.target));
     (c.layout??=[]).push({...e,start:rel(e.start),end:rel(e.end)});
   }

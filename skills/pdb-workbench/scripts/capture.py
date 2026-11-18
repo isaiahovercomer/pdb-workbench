@@ -1,6 +1,9 @@
 """Collect supplied local pages or linked same-origin web pages into offline HTML."""
 import argparse
 import base64
+import json
+import subprocess
+import tempfile
 from collections import deque
 from html import escape
 from html.parser import HTMLParser
@@ -155,6 +158,21 @@ def collect(source, output, title, depth, limit):
                     keep.update(src=images[img],alt=attrs.get('alt') or '')
                 section.append('<'+tag+''.join(f' {k}="{escape(v,quote=True)}"' for k,v in keep.items())+'>')
         sections.append(''.join(section)+'<p><a href="#contents">回目錄</a></p></article>')
+    if Path(output).suffix.lower()=='.pdb':
+        chapters=[]
+        for url,page in pages.items():
+            lines=[]
+            for kind,tag,attrs in page.events:
+                if kind=='text':
+                    lines.append(tag)
+                elif (kind=='close' and tag in ('p','div','li','h1','h2','h3','h4','tr','pre')) or (kind=='open' and tag=='br'):
+                    lines.append('\n')
+            chapters.append({'name':page.title.strip() or Path(unquote(urlsplit(url).path)).name,'body':''.join(lines).strip(),'note':''})
+        with tempfile.TemporaryDirectory() as folder:
+            source_file=Path(folder)/'chapters.json'
+            source_file.write_text(json.dumps({'title':title,'author':'','chapters':chapters}),encoding='utf8')
+            subprocess.run(['node',str(Path(__file__).with_name('run.cjs')),'sdoc',str(source_file),str(output)],check=True)
+        return
     with open(output,'x',encoding='utf8') as f:
         f.write('<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escape(title)+'</title><style>body{max-width:48em;margin:auto;padding:1em;line-height:1.7}img{max-width:100%}</style><h1>'+escape(title)+'</h1><nav id="contents"><ol>'+''.join(toc)+'</ol></nav>'+''.join(sections)+'</html>')
     print(f'{len(pages)} pages: {output}')

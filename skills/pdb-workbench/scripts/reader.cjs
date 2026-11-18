@@ -124,6 +124,29 @@ function sdocBlock(data, tables, limit) {
     for (let i = 0; i < length; i++) result.push(result[result.length - distance]);
   }
 }
+function sdocResource(bytes,db){
+  const head=db.records[0];if(db.type!=='SDoc'||!head)return null;
+  const slots=(bytes[head.start+24]<<8)|bytes[head.start+25];
+  const parts=[];let total=0;
+  for(const {start,end} of db.records){
+    const r=bytes.subarray(start,end);
+    if(r[0]!==4||r[1]!==13)continue;
+    const t=4+r[4],flags=t+2*(slots+2),word=p=>4*(r[p]*256+r[p+1]);
+    if(!slots||flags+slots>r.length)return null;
+    let trees;
+    for(let i=0;i<slots;i++){
+      const a=word(t+2*i+2),b=word(t+2*i+4),mode=r[flags+i];
+      if(a===b)continue;
+      if(mode>7||a>b||b>r.length)return null;
+      let data;
+      if(mode&4)data=r.subarray(a,b-(mode&3));
+      else{trees??=sdocTables(r.subarray(word(t),word(t+2)));data=sdocBlock(r.subarray(a,b),trees,4096)}
+      total+=data.length;if(total>maxBytes)return null;parts.push(data);
+    }
+  }
+  if(!total)return null;
+  const result=new Uint8Array(total);let offset=0;for(const p of parts){result.set(p,offset);offset+=p.length}return result;
+}
 function extractSdoc(bytes, db) {
   function record(index) {
     const entry = db.records[index];
@@ -386,4 +409,4 @@ function extractPlucker(bytes,db){
       broken("尚未支援正文轉檔："+db.type+" / "+db.creator);
     }
   }
-module.exports={maxBytes,parsePdb,requireTextFormat,extract,decode};
+module.exports={sdocResource,maxBytes,parsePdb,requireTextFormat,extract,decode};

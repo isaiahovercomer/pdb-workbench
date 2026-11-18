@@ -25,3 +25,5 @@ Plucker PDB 可用同一組閱讀、TXT 與批次指令抽取文字頁，支援�
 [下載 Muse 技能 ZIP](https://isaiahovercomer.github.io/pdb-workbench/pdb-workbench-skill.zip)。解壓後保留整個 pdb-workbench 資料夾。
 
 原書圖片含可辨識的 RGB565 圖層時，HTML 與 EPUB 保留彩色，其餘支援的圖層按灰階輸出。
+
+「詩歌與書報 → 製作 SDoc 或 Plucker PDB」可直接從章節、正文與選用的封面建立 SDoc。相容的檔案可在工作台讀回。英文圖文樣本的分片圖片可在 HTML 與 EPUB 中合併顯示，已辨識的圖片熱區可跳回書內段落，選單保留選項及可辨識的目的地。

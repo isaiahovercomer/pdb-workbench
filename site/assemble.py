@@ -25,7 +25,7 @@ panels = []
 for key,label,name in modules:
     fragment = (source / (name+'-module.html')).read_text(encoding='utf-8')
     if name in ('book','reader'):
-        for marker, filename in [('SHARED_ZIP','zip'),('SHARED_BATCH','batch'),('SHARED_SEARCH','search'),('SHARED_PLUCKER','plucker'),('SHARED_IMAGES','images'),('SHARED_LAYOUT','layout')]:
+        for marker, filename in [('SHARED_ZIP','zip'),('SHARED_BATCH','batch'),('SHARED_SEARCH','search'),('SHARED_PLUCKER','plucker'),('SHARED_SDOC','sdoc'),('SHARED_IMAGES','images'),('SHARED_LAYOUT','layout')]:
             script=(source.parent/'skills/pdb-workbench/scripts'/(filename+'.cjs')).read_text(encoding='utf-8')
             fragment=fragment.replace('/* '+marker+' */',script.split('module.exports=')[0])
     if name == 'book':
@@ -38,7 +38,7 @@ for key,label,name in modules:
         fragment = fragment.replace('/* SHARED_PDB_READER */',reader.split('module.exports=')[0])
     panels.append(f'<section id="{key}" aria-label="{label}" hidden>\n{fragment}\n</section>')
 page = page.replace('<p class="footer">','\n'.join(panels)+'\n<p class="footer">',1)
-guide = '''<details class="card" style="margin:18px 0"><summary style="cursor:pointer;font-weight:bold">格式、原廠引擎與專案參考</summary><p>PalmDOC 可直接在瀏覽器製作與閱讀。圖文 PDB（SDoc / SilX）可直接閱讀正文與匯出 UTF-8 純文字；寫入及執行 IXL 轉檔設定需使用 Windows 原廠引擎。在 Windows 工作台執行 Run-Project.cmd，可選取 .ixl 和選用的 .ixs，確認目的地後批次轉檔。排程時間寫在 IXL 裡，執行時需要支援排程的原廠程式。</p><p>網頁合訂僅能直接抓取允許瀏覽器讀取的網站。也可以選取已存好的 HTML 資料夾。書架和編輯草稿儲存在目前瀏覽器，請使用匯出功能備份。</p><p>功能研究參考 <a href="https://github.com/jontey/YPSongbook">YPSongbook</a>、<a href="https://github.com/samortiz/ministry">ministry</a>、<a href="https://github.com/jichu4n/palm-pdb">palm-pdb</a>、<a href="https://github.com/atang0925/HarmonyPDB-Next">HarmonyPDB-Next</a> 與 <a href="https://github.com/lxmx/PyPlucker">PyPlucker</a>。工作頁內的功能採獨立實作。</p></details>'''
+guide = '''<details class="card" style="margin:18px 0"><summary style="cursor:pointer;font-weight:bold">格式、原廠引擎與專案參考</summary><p>PalmDOC 可直接在瀏覽器製作與閱讀。圖文 PDB（SDoc / SilX）可直接閱讀正文與匯出 UTF-8 純文字；在「詩歌與書報」可直接製作含章節及封面的 SDoc。執行原廠 IXL 設定仍需 Windows 引擎。在 Windows 工作台執行 Run-Project.cmd，可選取 .ixl 和選用的 .ixs，確認目的地後批次轉檔。排程時間寫在 IXL 裡，執行時需要支援排程的原廠程式。</p><p>網頁合訂僅能直接抓取允許瀏覽器讀取的網站。也可以選取已存好的 HTML 資料夾。書架和編輯草稿儲存在目前瀏覽器，請使用匯出功能備份。</p><p>功能研究參考 <a href="https://github.com/jontey/YPSongbook">YPSongbook</a>、<a href="https://github.com/samortiz/ministry">ministry</a>、<a href="https://github.com/jichu4n/palm-pdb">palm-pdb</a>、<a href="https://github.com/atang0925/HarmonyPDB-Next">HarmonyPDB-Next</a> 與 <a href="https://github.com/lxmx/PyPlucker">PyPlucker</a>。工作頁內的功能採獨立實作。</p></details>'''
 guide=guide.replace('</details>','<p><a href="https://isaiahovercomer.github.io/pdb-workbench/pdb-workbench-skill.zip" download>下載 Muse 技能 ZIP</a></p></details>')
 page = page.replace('<p class="footer">',guide+'<p class="footer">',1)
 page = page.replace('const pages=["project","build","inspect"];',

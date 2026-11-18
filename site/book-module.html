@@ -30,7 +30,7 @@
 <label>經文出處與附註<textarea data-bk="note" rows="3" placeholder="選填，每行一筆"></textarea></label>
 <label>逐行經文與註腳<textarea data-bk="lineNotes" rows="2" placeholder="每行填寫歌詞行號與註腳，例如：2 | 詩一三三1"></textarea></label><details><summary>本章排版預覽</summary><div class="bookPreview" data-bk="preview"></div></details>
 <div class="bookActions"><button type="button" class="primary" data-bk="epub">下載 EPUB</button><button type="button" data-bk="html">下載單頁 HTML</button><button type="button" data-bk="excel">下載 Excel</button><button type="button" data-bk="cho">下載 ChordPro</button><button type="button" data-bk="palm">送至 PalmDOC 製作區</button><button type="button" data-bk="backup">儲存編輯檔</button></div>
-<details><summary>製作 Plucker PDB</summary><label>封面圖片（選填）<input data-bk="cover" type="file" accept="image/png,image/jpeg,image/webp"></label><label>封面最長邊<select data-bk="side"><option>160</option><option>240</option><option>320</option></select></label><label>灰階色深<select data-bk="bits"><option>4</option><option>2</option><option>1</option></select></label><label><input data-bk="compress" type="checkbox" checked> 使用 zlib 壓縮</label><button data-bk="plucker" type="button">下載 Plucker PDB</button></details>
+<details><summary>製作 SDoc 或 Plucker PDB</summary><label>封面圖片（選填）<input data-bk="cover" type="file" accept="image/png,image/jpeg,image/webp"></label><label>封面最長邊<select data-bk="side"><option>160</option><option>240</option><option>320</option></select></label><label>灰階色深<select data-bk="bits"><option>4</option><option>2</option><option>1</option></select></label><label><input data-bk="compress" type="checkbox" checked> Plucker 使用 zlib 壓縮</label><button data-bk="sdoc" type="button">下載 SDoc PDB</button><button data-bk="plucker" type="button">下載 Plucker PDB</button></details>
 <small data-bk="status" role="status"></small></div>
 </div></div>
 <script>
@@ -41,8 +41,9 @@ const key='pdb-songbook-draft-v1', enc=new TextEncoder();
 /* SHARED_ZIP */
 /* SHARED_BOOK */
 /* SHARED_PLUCKER */
+/* SHARED_SDOC */
 let book={title:'',author:'',chapters:[blank()]}, active=0;
-window.pdbBookFormats={htmlBook,epubBook};
+window.pdbBookFormats={htmlBook,epubBook,sdocBook};
 function message(t){ui.status.textContent=t}
 function store(){try{localStorage.setItem(key,JSON.stringify(book))}catch{message('瀏覽器未能保存草稿，請下載編輯檔備份。')}}
 function updateIndex(){ui.list.replaceChildren(...book.chapters.map((c,i)=>new Option((i+1)+'. '+heading(c,i),String(i))));ui.list.selectedIndex=active;ui.up.disabled=active===0;ui.down.disabled=active===book.chapters.length-1;}
@@ -84,7 +85,7 @@ ui.restore.onchange=async()=>{try{const f=ui.restore.files[0];if(!f)return;if(f.
 for(const [id,ext,type,make] of [['excel','xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',excelBook],['html','html','text/html',htmlBook],['epub','epub','application/epub+zip',epubBook],['cho','cho','text/plain',writeCho],['backup','json','application/json',b=>JSON.stringify(b,null,2)]]){
  ui[id].onclick=()=>{try{if(id!=='backup'&&!book.title.trim()){ui.title.focus();return message('請先填寫書名。')}const output=make(book),blob=output instanceof Blob?output:new Blob([output],{type:type+';charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(book.title.trim()||'書籍草稿').replace(/[\\/:*?"<>|]/g,'_')+'.'+ext;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);message('已產生 '+ext.toUpperCase()+' 檔。')}catch(e){message('匯出失敗。'+e.message)}};
 }
-ui.plucker.onclick=async()=>{
+for(const format of ["sdoc","plucker"])ui[format].onclick=async()=>{
  try{
   if(!book.title.trim())throw Error('請先填寫書名。');
   let bitmap=null;const file=ui.cover.files[0];
@@ -97,9 +98,9 @@ ui.plucker.onclick=async()=>{
     bitmap=palmGray(canvas.width,canvas.height,ctx.getImageData(0,0,canvas.width,canvas.height).data,Number(ui.bits.value));
    }finally{img.close()}
   }
-  const data=await pluckerBook(book,{bitmap,compress:ui.compress.checked});
+  const data=format==="sdoc"?sdocBook(book,bitmap):await pluckerBook(book,{bitmap,compress:ui.compress.checked});
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data]));a.download=book.title+'.pdb';a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),30000);message('已產生 Plucker PDB。');
+  setTimeout(()=>URL.revokeObjectURL(a.href),30000);message('已產生 '+(format==='sdoc'?'SDoc':'Plucker')+' PDB。');
  }catch(e){message(e.message)}
 };
 ui.palm.onclick=()=>openPalmDraft(book.title,book.chapters.map((c,i)=>[heading(c,i),c.body,c.note].filter(Boolean).join('\n')).join('\n\n'));
