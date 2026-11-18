@@ -20,6 +20,7 @@
 <label>章節目錄<select data-bk="list" class="bookIndex" size="7"></select></label>
 <div class="bookActions"><button type="button" data-bk="add">新增章節</button><button type="button" data-bk="up">上移</button><button type="button" data-bk="down">下移</button><button type="button" data-bk="remove">移除</button></div>
 <label>匯入 ChordPro（加入章節）<input type="file" data-bk="import" multiple accept=".cho,.chopro,.chordpro,.pro,.txt"></label>
+<label>依來源清單重建（選取含一份 JSON 清單與來源的資料夾）<input type="file" data-bk="sources" webkitdirectory multiple></label>
 <label>還原編輯檔<input type="file" data-bk="restore" accept=".json"></label>
 </div>
 <div class="card"><h2>編輯章節</h2>
@@ -59,6 +60,26 @@ for(const [id,step] of [['lower',-1],['raise',1]])ui[id].onclick=()=>{
  c.body=next;render();store();message('已將本章 '+count+' 個和弦'+(step>0?'升':'降')+'半音。');
 };
 ui.import.onchange=async()=>{try{const added=[];for(const f of ui.import.files){if(f.size>10*1024*1024)throw Error('單檔上限為 10 MB。');added.push(...readCho(new TextDecoder('utf-8',{fatal:true}).decode(await f.arrayBuffer()),f.name.replace(/\.[^.]+$/,'')))}if(!added.length)throw Error('未讀到歌詞。');const pristine=book.chapters.length===1&&Object.values(book.chapters[0]).every(s=>!s);if(added.length+(pristine?0:book.chapters.length)>2000)throw Error('每本最多 2,000 章。');if(pristine)book.chapters=[];active=book.chapters.length;book.chapters.push(...added);render();message('已加入 '+added.length+' 章。');store()}catch(e){message('匯入失敗。'+e.message)}finally{ui.import.value=''}};
+ui.sources.onchange=async()=>{
+ try{
+  const files=Array.from(ui.sources.files),manifests=files.filter(f=>/\.json$/i.test(f.name));
+  if(manifests.length!==1)throw Error('資料夾中應有一份 JSON 來源清單。');
+  const manifest=manifests[0],data=JSON.parse(await manifest.text());
+  if(!Array.isArray(data.sources)||!data.sources.length)throw Error('來源清單缺少 sources。');
+  const paths=new Map(files.map(f=>[f.webkitRelativePath,f])),prefix=manifest.webkitRelativePath.replace(/[^/]+$/,'');
+  const chapters=[];
+  for(const name of data.sources){
+   const file=paths.get(prefix+name);if(!file)throw Error('找不到 '+name);
+   if(file.size>48*1024*1024)throw Error('來源超過 48 MiB。');
+   if(/\.(pdb|prc)$/i.test(name))chapters.push(...window.pdbSourceChapters(new Uint8Array(await file.arrayBuffer())));
+   else chapters.push(...readCho(await file.text(),file.name.replace(/\.[^.]+$/,'')));
+   if(chapters.length>2000)throw Error('章節數超過 2,000。');
+  }
+  if(!chapters.length)throw Error('來源沒有章節。');
+  if((book.title||book.chapters.some(c=>c.body||c.name))&&!confirm('以清單重建的內容取代目前草稿？'))return;
+  book={title:String(data.title||manifest.name),author:String(data.author||''),chapters};active=0;render();store();message('已依清單順序重建 '+chapters.length+' 章。');
+ }catch(e){message(e.message)}finally{ui.sources.value=''}
+};
 ui.restore.onchange=async()=>{try{const f=ui.restore.files[0];if(!f)return;if(f.size>40*1024*1024)throw Error('編輯檔上限為 40 MB。');const b=JSON.parse(await f.text());if(!valid(b))throw Error('編輯檔格式不符。');if(!confirm('以選取的編輯檔取代目前整本草稿？'))return;book=b;active=0;render();message('已還原編輯檔。');store()}catch(e){message('還原失敗。'+e.message)}finally{ui.restore.value=''}};
 for(const [id,ext,type,make] of [['excel','xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',excelBook],['html','html','text/html',htmlBook],['epub','epub','application/epub+zip',epubBook],['cho','cho','text/plain',writeCho],['backup','json','application/json',b=>JSON.stringify(b,null,2)]]){
  ui[id].onclick=()=>{try{if(id!=='backup'&&!book.title.trim()){ui.title.focus();return message('請先填寫書名。')}const output=make(book),blob=output instanceof Blob?output:new Blob([output],{type:type+';charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(book.title.trim()||'書籍草稿').replace(/[\\/:*?"<>|]/g,'_')+'.'+ext;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);message('已產生 '+ext.toUpperCase()+' 檔。')}catch(e){message('匯出失敗。'+e.message)}};

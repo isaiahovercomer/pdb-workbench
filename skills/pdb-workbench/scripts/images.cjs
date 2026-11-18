@@ -44,9 +44,9 @@ function imagePng(record){
 function sdocImages(bytes,db){
   if(db.type!=='SDoc')return [];
   const images=[];let total=0;
-  for(const {start,end} of db.records){
+  for(const [index,{start,end}] of db.records.entries()){
     if(bytes[start]!==4||bytes[start+1]!==4)continue;
-    try{const png=imagePng(bytes.subarray(start,end));if(png){total+=png.length;if(total>32*1024*1024)break;images.push(png)}}catch{}
+    try{const png=imagePng(bytes.subarray(start,end));if(png){total+=png.length;if(total>32*1024*1024)break;png.recordIndex=index;images.push(png)}}catch{}
   }
   return images;
 }

@@ -31,10 +31,14 @@ description: 讀取 SDoc / SilX 圖文 PDB 與 PalmDOC PDB 正文並轉成 UTF-8
 
 ## 轉出電子書與重建歌本
 
-- 匯出單本時執行 `node scripts/run.cjs export "來源.pdb" "書報.epub"`。也可輸出 HTML、XLSX、ChordPro（.cho），或 Plucker（.pdb）。SDoc 的 HTML 與 EPUB 包含可解讀的原書目錄與灰階圖片附錄。其他版本、圖片原始位置、原書表格及內文註腳連結需另行核對。
+- 匯出單本時執行 `node scripts/run.cjs export "來源.pdb" "書報.epub"`。也可輸出 HTML、XLSX、ChordPro（.cho），或 Plucker（.pdb）。SDoc 的 HTML 與 EPUB 可保留支援記錄中的原書目錄、內文連結、表格、合併儲存格和行內灰階圖片，其他可解碼圖片收於附錄。特殊選單或圖像熱區、未辨識的連結與註腳樣式可能只保留文字。
 - 將 ChordPro、文字檔或編輯檔轉成歌本，可執行 `node scripts/run.cjs export "來源.cho" "詩歌.xlsx" 2`。最後的數字是移調半音數，範圍 -12 至 12。逐行註腳可用 `{comment: 行註 2 | 詩一三三1}` 表示。
 - 從多個來源重建時，建立 UTF-8 JSON，例如 `{"title":"詩歌選","author":"","sources":["第一首.cho","第二首.cho"]}`。依清單順序執行 `node scripts/run.cjs export "清單.json" "詩歌選.epub"`。相對路徑以清單所在目錄為準。
 - 舊 Palm 個人資料庫可用 txt 或 batch-txt 讀取 MemoDB 備忘錄、AddressDB 通訊錄、DatebookDB 行事曆及 ToDoDB 待辦事項。
 - 製作離線網頁合訂本需 Python 3.9 以上。執行 `python scripts/capture.py "網頁資料夾" "合訂本.html"`，或以完整網址作為來源，加上 `--depth 2 --max-pages 30 --title "書報選讀"`。輸出保留已收錄頁面的內部連結、表格及可讀取的 PNG、JPEG、GIF 圖片。
 
 網頁的「PDB 轉 TXT」提供本機書架、整個資料夾加入書架、跨書搜尋與閱讀位置跳轉。「詩歌與書報」可另選封面、尺寸、灰階色深和 zlib 壓縮，製作 Plucker PDB。
+
+在 Muse 使用 `node scripts/run.cjs search "關鍵詞" "藏書資料夾"`，會依關聯程度列出書名、章節與段落摘錄。
+
+Muse 製作含封面的 Plucker 時，執行 `node scripts/run.cjs plucker "來源.cho" "歌本.pdb" "封面.png" 240 4 zlib`。尺寸為最長邊，灰階色深可選 1、2、4。封面填 `-` 可略過，最後填 `raw` 可關閉壓縮。

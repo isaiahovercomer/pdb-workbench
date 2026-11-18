@@ -29,15 +29,30 @@ function textChapters(text,original=[]) {
   chapters.push({name,body:text.slice(start),note:'',start});
   return chapters;
 }
-function searchBook(title,text,term) {
+function searchBook(title,text,term,original=[]) {
   const results=[];
-  for (const c of textChapters(text)) {
-    const pos=c.body.indexOf(term), inTitle=title.includes(term), inChapter=c.name.includes(term);
-    if(pos<0 && !inChapter && !(inTitle && !results.length)) continue;
-    const i=Math.max(pos,0);
-    results.push({chapter:c.name,offset:c.start+i,score:(inTitle?4:0)+(inChapter?2:0)+(pos>=0?1:0),
-      snippet:c.body.slice(Math.max(0,i-26),i+term.length+48).replace(/\s+/g,' ')});
+  if(!term)return results;
+  const needle=term.toLowerCase(),titleHit=title.toLowerCase().includes(needle);
+  for(const c of textChapters(text,original)){
+    const chapterHit=c.name.toLowerCase().includes(needle);
+    let matched=false;
+    for(const line of c.body.matchAll(/[^\n]+/g)){
+      const i=line[0].toLowerCase().indexOf(needle);
+      if(i<0)continue;
+      matched=true;
+      results.push({chapter:c.name,offset:c.start+line.index+i,score:(titleHit?4:0)+(chapterHit?2:0)+1,
+        snippet:line[0].slice(Math.max(0,i-26),i+term.length+48)});
+      if(results.length>=2000)return results;
+    }
+    if(!matched&&(chapterHit||(titleHit&&!results.length)))results.push({chapter:c.name,offset:c.start,score:(titleHit?4:0)+(chapterHit?2:0),snippet:c.body.slice(0,75).replace(/\s+/g,' ')});
   }
   return results;
 }
-module.exports={textChapters,searchBook,originalChapters};
+function searchFile(reader,bytes,name,term,encoding='auto'){
+  const db=reader.parsePdb(bytes);reader.requireTextFormat(db);
+  const plain=reader.extract(bytes,db),enc=encoding==='auto'?db.encoding||'auto':encoding;
+  const text=reader.decode(plain,enc).replace(/\r\n?/g,'\n');
+  const title=reader.decode(db.name,encoding)||name;
+  return searchBook(title,text,term,originalChapters(bytes,db,plain,enc)).map(hit=>({...hit,name:title}));
+}
+module.exports={textChapters,searchBook,originalChapters,searchFile};

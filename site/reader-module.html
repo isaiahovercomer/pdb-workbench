@@ -7,7 +7,7 @@
   <details id="pdrShelf"><summary>本機書架</summary><div class="pdr-actions"><button type="button" id="pdrSaveBook" disabled>將目前檔案加入書架</button><select id="pdrShelfBook" aria-label="已儲存的書籍"></select><button type="button" id="pdrOpenBook" disabled>開啟藏書</button><button type="button" id="pdrDeleteBook" disabled>移出書架</button></div><p id="pdrShelfStatus" class="note" role="status">書籍儲存在目前使用的瀏覽器。</p><label>整個資料夾加入書架<input id="pdrImportShelf" type="file" webkitdirectory multiple></label><label>搜尋所有藏書<input id="pdrSearchShelf" type="search"></label><button id="pdrSearchAll" type="button">跨書搜尋</button><div id="pdrShelfResults"></div></details>
   <details hidden id="pdrDiagnostics"><summary>檔案結構與記錄</summary><dl id="pdrStats"></dl><div class="pdr-actions"><button type="button" id="pdrRecordPrev">前 50 筆</button><span id="pdrRecordRange"></span><button type="button" id="pdrRecordNext">後 50 筆</button></div>
   <div class="pdr-table"><table><thead><tr><th>記錄編號</th><th>檔案位置</th><th>長度（位元組）</th><th>記錄識別碼</th></tr></thead><tbody id="pdrRecords"></tbody></table></div></details>
-  <div hidden id="pdrReading"><button type="button" id="pdrDownload">下載全書純文字（.txt）</button><button type="button" id="pdrHtml">下載正文 HTML</button> <button type="button" id="pdrEpub">下載正文 EPUB</button><h3 id="pdrBook"></h3>
+  <div hidden id="pdrReading"><button type="button" id="pdrDownload">下載全書純文字（.txt）</button><button type="button" id="pdrHtml">下載正文 HTML</button> <button type="button" id="pdrEpub">下載正文 EPUB</button><button id="pdrLayout" type="button">開啟圖文閱讀</button><details id="pdrRich" hidden><summary>圖文閱讀</summary><iframe sandbox="allow-same-origin" title="原書圖文" style="width:100%;height:70vh;border:0"></iframe></details><h3 id="pdrBook"></h3>
     <div class="twocol"><div><label for="pdrChapter">章節索引</label><select id="pdrChapter"></select></div><div><label for="pdrFont">閱讀字級</label><select id="pdrFont"><option value="18">標準</option><option value="22">大字</option><option value="27">特大</option></select></div></div>
     <label for="pdrQuery">全文搜尋</label><div class="pdr-actions"><input id="pdrQuery" type="search"><button type="button" id="pdrFind">搜尋</button><button type="button" id="pdrFindNext">下一筆</button><span id="pdrMatches" role="status"></span></div>
     <div class="pdr-actions"><button type="button" id="pdrPrev">上一頁</button><span id="pdrPage"></span><button type="button" id="pdrNext">下一頁</button><button type="button" id="pdrNight" aria-pressed="false">夜間閱讀</button></div>
@@ -28,6 +28,11 @@
   /* SHARED_BATCH */
   /* SHARED_SEARCH */
 /* SHARED_IMAGES */
+/* SHARED_LAYOUT */
+  window.pdbSourceChapters=b=>{
+    const db=parsePdb(b);requireTextFormat(db);const raw=extract(b,db),enc=db.encoding||'auto';
+    return textChapters(decode(raw,enc).replace(/\r\n?/g,'\n'),originalChapters(b,db,raw,enc)).map(c=>({...c,literal:true}));
+  };
   const batchInputs=[el("BatchFiles"),el("BatchFolder")];
   let selectedBooks=[], batchUrl;
   for(const input of batchInputs) input.onchange=()=>{
@@ -92,6 +97,7 @@
     el("Chapter").value=String(chapters[n][1]);
   }
   function renderBody(){
+    el("Rich").hidden=true;el("Rich").open=false;el("Rich").querySelector("iframe").removeAttribute("srcdoc");
     title=decode(db.name,el("Encoding").value)||filename;
     body=decode(plain,el("Encoding").value==="auto" ? db.encoding || "auto" : el("Encoding").value).replace(/\r\n?/g,"\n");
     pageStarts=[0];for(let i=pageSize;i<body.length;i+=pageSize){
@@ -168,9 +174,8 @@
           const item=await shelfAction("readonly",s=>s.get(option.value));
           const source=new Uint8Array(await item.file.arrayBuffer());
           const encoding=el("Encoding").value;
-          const text=bookText({maxBytes,parsePdb,requireTextFormat,extract,decode},source,encoding);
-          const name=decode(parsePdb(source).name,"auto")||item.file.name;
-          for(const hit of searchBook(name,text,term))results.push({...hit,name,id:item.id,encoding});
+          const hits=searchFile({parsePdb,requireTextFormat,extract,decode},source,item.file.name,term,encoding);
+          for(const hit of hits)results.push({...hit,id:item.id,encoding});
         }catch(e){skipped.push(option.text+"："+e.message)}
       }
       results.sort((a,b)=>b.score-a.score);
@@ -178,10 +183,10 @@
         const btn=document.createElement("button");btn.type="button";
         btn.textContent=result.name+" · "+result.chapter+" — "+result.snippet;
         btn.onclick=async()=>{try{const item=await shelfAction("readonly",s=>s.get(result.id));el("Encoding").value=result.encoding;await open(item.file);
-          if(!plain)return;query=term;hit=body.startsWith(term,result.offset)?result.offset:-1;el("Query").value=term;showPage(pageFor(result.offset));el("Text").focus();
+          if(!plain)return;query=term;hit=body.slice(result.offset,result.offset+term.length).toLowerCase()===term.toLowerCase()?result.offset:-1;el("Query").value=term;showPage(pageFor(result.offset));el("Text").focus();
         }catch(e){shelfStatus(e.message)}};dest.append(btn);
       }
-      shelfStatus("找到 "+results.length+" 個章節，顯示前 "+Math.min(results.length,200)+" 筆。"+(skipped.length?"略過："+skipped.join("、"):""));
+      shelfStatus("找到 "+results.length+" 筆結果，顯示前 "+Math.min(results.length,200)+" 筆。"+(skipped.length?"略過："+skipped.join("、"):""));
     }catch(e){shelfStatus(e.message)}finally{el("SearchAll").disabled=false}
   };
   let shelfDb=null;
@@ -203,6 +208,16 @@
       req.onsuccess=()=>{const cursor=req.result;if(cursor){opts.push([cursor.key,cursor.primaryKey]);cursor.continue()}};
       tx.oncomplete=resolve;tx.onabort=()=>reject(tx.error);
     });
+    for(const row of opts){
+      if(/ KB$/.test(row[0]))continue;
+      const old=await shelfAction("readonly",s=>s.get(row[1]));if(!old?.file)continue;
+      const header=new Uint8Array(await old.file.slice(0,78).arrayBuffer());
+      if(header.length===78){
+        const type=String.fromCharCode(...header.slice(60,64)),creator=String.fromCharCode(...header.slice(64,68));
+        row[0]+=" · "+type+"/"+creator+" · "+Math.ceil(old.file.size/1024)+" KB";
+        await shelfAction("readwrite",s=>s.put({...old,label:row[0]}));
+      }
+    }
     options(el("ShelfBook"),opts.length?opts:[["書架尚無藏書",""]]);
     if(selected&&opts.some(row=>row[1]===selected))el("ShelfBook").value=selected;
     el("OpenBook").disabled=el("DeleteBook").disabled=!opts.length;
@@ -240,9 +255,13 @@
   el("Mark").onclick=()=>{if(!marks.includes(page))marks.push(page);marks.sort((a,b)=>a-b);storeMarks();el("Bookmarks").value=String(page)};
   el("Jump").onclick=()=>showPage(Number(el("Bookmarks").value));el("Remove").onclick=()=>{marks=marks.filter(p=>p!==Number(el("Bookmarks").value));storeMarks()};
   el("Edit").onclick=()=>openPalmDraft(title,body);
-  for(const [id,ext] of [["Html","html"],["Epub","epub"]]){
+  for(const [id,ext] of [["Html","html"],["Epub","epub"],["Layout","preview"]]){
     el(id).onclick=()=>{try{
       const book={title,images:sdocImages(bytes,db),author:"",chapters:textChapters(body,originalChapters(bytes,db,plain,el("Encoding").value==="auto"?db.encoding||"auto":el("Encoding").value)).map(c=>({...c,literal:true}))};
+      sdocLayout(bytes,db,plain,el("Encoding").value==="auto"?db.encoding||"auto":el("Encoding").value,book.chapters,book.images);
+      if(ext==="preview"){
+        const rich=el("Rich");rich.querySelector("iframe").srcdoc=window.pdbBookFormats.htmlBook(book);rich.hidden=false;rich.open=true;return;
+      }
       const output=ext==="html"?new Blob([window.pdbBookFormats.htmlBook(book)],{type:"text/html;charset=utf-8"}):window.pdbBookFormats.epubBook(book);
       const a=document.createElement("a");a.href=URL.createObjectURL(output);a.download=(title.replace(/[\\/:*?"<>|]/g,"_")||"電子書")+"."+ext;
       a.click();setTimeout(()=>URL.revokeObjectURL(a.href),30000);

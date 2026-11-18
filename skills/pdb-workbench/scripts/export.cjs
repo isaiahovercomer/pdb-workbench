@@ -14,12 +14,14 @@ function sourceBook(file) {
     const plain=reader.extract(bytes,db),encoding=db.encoding||'auto';
     const body=reader.decode(plain,encoding).replace(/\r\n?/g,'\n');
     const original=originalChapters(bytes,db,plain,encoding);
-    return {title,images:require('./images.cjs').sdocImages(bytes,db),author:'',chapters:textChapters(body,original).map(c=>({...c,literal:true}))};
+    const book={title,images:require('./images.cjs').sdocImages(bytes,db),author:'',chapters:textChapters(body,original).map(c=>({...c,literal:true}))};
+    require('./layout.cjs').sdocLayout(bytes,db,plain,encoding,book.chapters,book.images);
+    return book;
   }
   const text=fs.readFileSync(file,'utf8');
   if(/\.json$/i.test(file)){
     const book=JSON.parse(text);
-    if(formats.valid(book))return book;
+    if(formats.valid(book))return {...book,images:[],chapters:book.chapters.map(({layout,...chapter})=>chapter)};
     if(!Array.isArray(book.sources)||!book.sources.length||!book.sources.every(s=>typeof s==='string'&&/\.(cho|pro|txt|chopro|chordpro|pdb|prc)$/i.test(s)))throw Error('來源清單格式錯誤');
     return {title:book.title||title,author:book.author||'',chapters:book.sources.flatMap(s=>sourceBook(path.resolve(path.dirname(file),s)).chapters)};
   }
@@ -29,7 +31,7 @@ async function exportBook(input,output,step=0){
   const b=sourceBook(input);
   if(!b.chapters.length)throw Error('沒有可匯出的章節。');
   if(!Number.isInteger(step)||Math.abs(step)>12)throw Error('移調範圍為 -12 至 12 半音。');
-  if(step)for(const c of b.chapters)c.body=c.body.replace(/\[([^\]\n]{1,32})\]/g,(_,name)=>'['+formats.shifted(name,step)+']');
+  if(step)for(const c of b.chapters)if(!c.literal)c.body=c.body.replace(/\[([^\]\n]{1,32})\]/g,(_,name)=>'['+formats.shifted(name,step)+']');
   if(path.extname(output).toLowerCase()==='.pdb'){
     fs.writeFileSync(output,await require('./plucker.cjs').pluckerBook(b),{flag:'wx'});return;
   }
@@ -38,4 +40,4 @@ async function exportBook(input,output,step=0){
   const result=fn(b);
   fs.writeFileSync(output,result instanceof Blob?Buffer.from(await result.arrayBuffer()):result,{flag:'wx'});
 }
-module.exports={exportBook};
+module.exports={exportBook,sourceBook};

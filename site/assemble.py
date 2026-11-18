@@ -25,7 +25,7 @@ panels = []
 for key,label,name in modules:
     fragment = (source / (name+'-module.html')).read_text(encoding='utf-8')
     if name in ('book','reader'):
-        for marker, filename in [('SHARED_ZIP','zip'),('SHARED_BATCH','batch'),('SHARED_SEARCH','search'),('SHARED_PLUCKER','plucker'),('SHARED_IMAGES','images')]:
+        for marker, filename in [('SHARED_ZIP','zip'),('SHARED_BATCH','batch'),('SHARED_SEARCH','search'),('SHARED_PLUCKER','plucker'),('SHARED_IMAGES','images'),('SHARED_LAYOUT','layout')]:
             script=(source.parent/'skills/pdb-workbench/scripts'/(filename+'.cjs')).read_text(encoding='utf-8')
             fragment=fragment.replace('/* '+marker+' */',script.split('module.exports=')[0])
     if name == 'book':

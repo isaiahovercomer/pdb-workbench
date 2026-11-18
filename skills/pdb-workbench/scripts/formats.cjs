@@ -15,19 +15,43 @@ function lineNotes(c) {
  }
  return notes;
 }
-function chapter(c,i){const notes=lineNotes(c);return '<h2>'+safeXml(heading(c,i))+'</h2><div class="bookVerse">'+c.body.replace(/\r\n?/g,'\n').split('\n').map((line,j)=>(c.literal?safeXml(line):marked(line))+(notes.has(j+1)?'<small>〔'+safeXml(notes.get(j+1))+'〕</small>':'')).join('<br/>')+'</div>'+(c.note.trim()?'<p class="bookFoot">'+safeXml(c.note)+'</p>':'')}
-
-const bookCss='body{max-width:48em;margin:1em auto;padding:1em;font-family:serif;line-height:1.75;color:#213f38}h1,h2{line-height:1.4}.bookVerse,.bookFoot{white-space:pre-wrap;overflow-wrap:anywhere}.bookPair{display:inline-flex;flex-direction:column;vertical-align:bottom}.bookChord{font:bold .8em/1.25 monospace;color:#775020}.bookFoot{border-top:1px solid #ccc;padding-top:.7em}section{margin:2em 0;break-before:page}a{color:#17584c}';
-function pictures(book){return Array.isArray(book.images)?book.images.filter(x=>x instanceof Uint8Array):[]}
-function gallery(images,inline){
- if(!images.length)return '';
- return '<section><h2>原書圖片附錄</h2>'+images.map((bytes,i)=>{
-  let src='p'+i+'.png';
-  if(inline){let binary='';for(let n=0;n<bytes.length;n+=8192)binary+=String.fromCharCode(...bytes.subarray(n,n+8192));src='data:image/png;base64,'+btoa(binary)}
-  return '<figure><img alt="原書圖片 '+(i+1)+'" src="'+src+'"/></figure>';
- }).join('')+'</section>';
+function arranged(c,book,inline){
+ const items=c.layout.slice().sort((a,b)=>a.start-b.start||(a.kind==='anchor'?-1:b.kind==='anchor'?1:b.end-a.end));
+ const safeText=s=>safeXml(s).replace(/\n/g,'<br/>');
+ function range(start,end,omit,level){
+  let pos=start,html='';
+  for(const e of items){
+   if(e===omit||e.start<pos||e.start>=end||e.end>end||e.end<e.start||!Number.isSafeInteger(e.start)||!Number.isSafeInteger(e.end))continue;
+   html+=safeText(c.body.slice(pos,e.start));pos=e.start;
+   if(e.kind==='anchor'&&Number.isSafeInteger(e.target)){html+='<span id="o'+e.target+'"></span>';continue}
+   if(e.kind==='link'&&Number.isSafeInteger(e.target)&&Number.isSafeInteger(e.page)){
+    html+='<a '+(e.note?(inline?'role="doc-noteref" ':'epub:type="noteref" '):'')+'href="'+(inline?'':'c'+e.page+'.xhtml')+'#o'+e.target+'">'+safeText(c.body.slice(e.start,e.end))+'</a>';
+   }else if(e.kind==='image'&&book.images?.[e.img] instanceof Uint8Array){
+    html+=pictureTag(book.images[e.img],e.img,inline);
+   }else if(e.kind==='table'&&level<4&&Array.isArray(e.rows)){
+    html+='<table><tbody>'+e.rows.map(row=>'<tr>'+row.map(cell=>'<td colspan="'+(Number(cell.colspan)||1)+'" rowspan="'+(Number(cell.rowspan)||1)+'">'+range(cell.start,cell.end,e,level+1).replace(/^(<br\/>)+|(<br\/>)+$/g,'')+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+   }else continue;
+   pos=e.end;
+  }
+  return html+safeText(c.body.slice(pos,end));
+ }
+ return range(0,c.body.length,null,0);
 }
-function htmlBook(b){return '<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+safeXml(b.title)+'</title><style>'+bookCss+'</style><main><h1>'+safeXml(b.title)+'</h1><p>'+safeXml(b.author)+'</p><nav id="toc"><h2>目錄</h2><ol>'+b.chapters.map((c,i)=>'<li><a href="#c'+i+'">'+safeXml(heading(c,i))+'</a></li>').join('')+'</ol></nav>'+b.chapters.map((c,i)=>'<section id="c'+i+'">'+chapter(c,i)+'<p><a href="#toc">回目錄</a></p></section>').join('') +gallery(pictures(b),true)+'</main></html>'}
+function chapter(c,i,book={},inline=true){if(c.literal&&c.layout?.length)return '<h2>'+safeXml(heading(c,i))+'</h2><div>'+arranged(c,book,inline)+'</div>';const notes=lineNotes(c);return '<h2>'+safeXml(heading(c,i))+'</h2><div class="bookVerse">'+c.body.replace(/\r\n?/g,'\n').split('\n').map((line,j)=>(c.literal?safeXml(line):marked(line))+(notes.has(j+1)?'<small>〔'+safeXml(notes.get(j+1))+'〕</small>':'')).join('<br/>')+'</div>'+(c.note.trim()?'<p class="bookFoot">'+safeXml(c.note)+'</p>':'')}
+
+const bookCss='body{max-width:48em;margin:1em auto;padding:1em;font-family:serif;line-height:1.75;color:#213f38}h1,h2{line-height:1.4}.bookVerse,.bookFoot{white-space:pre-wrap;overflow-wrap:anywhere}.bookPair{display:inline-flex;flex-direction:column;vertical-align:bottom}.bookChord{font:bold .8em/1.25 monospace;color:#775020}.bookFoot{border-top:1px solid #ccc;padding-top:.7em}table{border-collapse:collapse}td{border:1px solid #888;padding:.25em}img{max-width:100%;height:auto}section{margin:2em 0;break-before:page}a{color:#17584c}';
+function pictures(book){return Array.isArray(book.images)?book.images.filter(x=>x instanceof Uint8Array):[]}
+function pictureTag(bytes,i,inline){
+ let src='p'+i+'.png';
+ if(inline){let binary='';for(let n=0;n<bytes.length;n+=8192)binary+=String.fromCharCode(...bytes.subarray(n,n+8192));src='data:image/png;base64,'+btoa(binary)}
+ return '<img alt="原書圖片 '+(i+1)+'" src="'+src+'"/>';
+}
+function gallery(book,inline){
+ const placed=new Set(book.chapters.flatMap(c=>(c.layout||[]).filter(e=>e.kind==='image').map(e=>e.img)));
+ const tags=pictures(book).map((bytes,i)=>placed.has(i)?'':'<figure>'+pictureTag(bytes,i,inline)+'</figure>').join('');
+ return tags?'<section><h2>原書圖片附錄</h2>'+tags+'</section>':'';
+}
+function htmlBook(b){return '<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+safeXml(b.title)+'</title><style>'+bookCss+'</style><main><h1>'+safeXml(b.title)+'</h1><p>'+safeXml(b.author)+'</p><nav id="toc"><h2>目錄</h2><ol>'+b.chapters.map((c,i)=>'<li><a href="#c'+i+'">'+safeXml(heading(c,i))+'</a></li>').join('')+'</ol></nav>'+b.chapters.map((c,i)=>'<section id="c'+i+'">'+chapter(c,i,b,true)+'<p><a href="#toc">回目錄</a></p></section>').join('') +gallery(b,true)+'</main></html>'}
 
 function epubBook(b){
  const xml='<?xml version="1.0" encoding="UTF-8"?>',uuid='urn:uuid:'+globalThis.crypto.randomUUID(),title=safeXml(b.title);
@@ -35,7 +59,7 @@ function epubBook(b){
  const names=b.chapters.map((c,i)=>safeXml(heading(c,i))), links=names.map((n,i)=>'<li><a href="c'+i+'.xhtml">'+n+'</a></li>').join('');
  const opf=xml+'<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">'+uuid+'</dc:identifier><dc:title>'+title+'</dc:title><dc:language>zh-Hant</dc:language>'+(b.author?'<dc:creator>'+safeXml(b.author)+'</dc:creator>':'')+'<meta property="dcterms:modified">'+new Date().toISOString().split('.')[0]+'Z</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="css" href="book.css" media-type="text/css"/><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'+names.map((_,i)=>'<item id="c'+i+'" href="c'+i+'.xhtml" media-type="application/xhtml+xml"/>').join('')+pictures(b).map((_,i)=>'<item id="p'+i+'" href="p'+i+'.png" media-type="image/png"/>').join('')+'</manifest><spine toc="ncx"><itemref idref="nav"/>'+names.map((_,i)=>'<itemref idref="c'+i+'"/>').join('')+'</spine></package>';
  const ncx=xml+'<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="'+uuid+'"/></head><docTitle><text>'+title+'</text></docTitle><navMap>'+names.map((n,i)=>'<navPoint id="p'+i+'" playOrder="'+(i+1)+'"><navLabel><text>'+n+'</text></navLabel><content src="c'+i+'.xhtml"/></navPoint>').join('')+'</navMap></ncx>';
- return zip([['mimetype','application/epub+zip'],['META-INF/container.xml',xml+'<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="EPUB/book.opf" media-type="application/oebps-package+xml"/></rootfiles></container>'],['EPUB/book.opf',opf],['EPUB/book.css',bookCss],['EPUB/toc.ncx',ncx],['EPUB/nav.xhtml',page(title,'<h1>'+title+'</h1><nav epub:type="toc"><h2>目錄</h2><ol>'+links+'</ol></nav>')],...names.map((n,i)=>['EPUB/c'+i+'.xhtml',page(n,chapter(b.chapters[i],i)+(i===names.length-1?gallery(pictures(b),false):''))]),...pictures(b).map((img,i)=>['EPUB/p'+i+'.png',img])]);
+ return zip([['mimetype','application/epub+zip'],['META-INF/container.xml',xml+'<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0"><rootfiles><rootfile full-path="EPUB/book.opf" media-type="application/oebps-package+xml"/></rootfiles></container>'],['EPUB/book.opf',opf],['EPUB/book.css',bookCss],['EPUB/toc.ncx',ncx],['EPUB/nav.xhtml',page(title,'<h1>'+title+'</h1><nav epub:type="toc"><h2>目錄</h2><ol>'+links+'</ol></nav>')],...names.map((n,i)=>['EPUB/c'+i+'.xhtml',page(n,chapter(b.chapters[i],i,b,false)+(i===names.length-1?gallery(b,false):''))]),...pictures(b).map((img,i)=>['EPUB/p'+i+'.png',img])]);
 }
 
 const chordPattern=/^([A-G])([#b♯♭]?)(?:(m(?:aj|in)?|M|maj|min|dim|aug|sus|add|no|omit|alt|dom|Δ|ø|°|\+|-|[#b♯♭]|[0-9]|[(),])*)(?:\/([A-G])([#b♯♭]?))?$/;
