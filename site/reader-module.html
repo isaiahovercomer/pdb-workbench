@@ -1,16 +1,16 @@
 <section class="card" id="pdr">
-  <h2>閱讀 PDB 電子書</h2>
+  <h2>PDB 轉純文字與閱讀</h2>
   <div class="twocol"><div><label for="pdrFile">開啟本機 PDB 或 PRC</label><input id="pdrFile" type="file" accept=".pdb,.prc"></div><div><label for="pdrEncoding">文字編碼</label><select id="pdrEncoding"><option value="auto">自動判讀</option><option value="big5">繁體中文 Big5</option><option value="utf-8">UTF-8</option><option value="windows-1252">西歐文字</option></select></div></div>
-  <p class="status" id="pdrStatus" role="status">可閱讀 PalmDOC 正文，並檢視 不同 PDB 的記錄結構。</p>
+  <p class="status" id="pdrStatus" role="status">選取 PalmDOC 電子書即可預覽全文並下載 UTF-8 純文字。若中文字顯示異常，可切換為 Big5。</p>
   <details id="pdrShelf"><summary>本機書架</summary><div class="pdr-actions"><button type="button" id="pdrSaveBook" disabled>將目前檔案加入書架</button><select id="pdrShelfBook" aria-label="已儲存的書籍"></select><button type="button" id="pdrOpenBook" disabled>開啟藏書</button><button type="button" id="pdrDeleteBook" disabled>移出書架</button></div><p id="pdrShelfStatus" class="note" role="status">書籍儲存在目前使用的瀏覽器。</p></details>
   <details hidden id="pdrDiagnostics"><summary>檔案結構與記錄</summary><dl id="pdrStats"></dl><div class="pdr-actions"><button type="button" id="pdrRecordPrev">前 50 筆</button><span id="pdrRecordRange"></span><button type="button" id="pdrRecordNext">後 50 筆</button></div>
   <div class="pdr-table"><table><thead><tr><th>記錄編號</th><th>檔案位置</th><th>長度（位元組）</th><th>記錄識別碼</th></tr></thead><tbody id="pdrRecords"></tbody></table></div></details>
-  <div hidden id="pdrReading"><h3 id="pdrBook"></h3>
+  <div hidden id="pdrReading"><button type="button" id="pdrDownload">下載全書純文字（.txt）</button><h3 id="pdrBook"></h3>
     <div class="twocol"><div><label for="pdrChapter">章節索引</label><select id="pdrChapter"></select></div><div><label for="pdrFont">閱讀字級</label><select id="pdrFont"><option value="18">標準</option><option value="22">大字</option><option value="27">特大</option></select></div></div>
     <label for="pdrQuery">全文搜尋</label><div class="pdr-actions"><input id="pdrQuery" type="search"><button type="button" id="pdrFind">搜尋</button><button type="button" id="pdrFindNext">下一筆</button><span id="pdrMatches" role="status"></span></div>
     <div class="pdr-actions"><button type="button" id="pdrPrev">上一頁</button><span id="pdrPage"></span><button type="button" id="pdrNext">下一頁</button><button type="button" id="pdrNight" aria-pressed="false">夜間閱讀</button></div>
     <article class="pdr-page" id="pdrText" tabindex="0" aria-label="正文"></article>
-    <div class="pdr-actions"><button type="button" id="pdrMark">為此頁加書籤</button><select aria-label="本機書籤" id="pdrBookmarks"></select><button type="button" id="pdrJump">前往書籤</button><button type="button" id="pdrRemove">移除書籤</button><button type="button" id="pdrEdit">送至 PalmDOC 製作區</button><button type="button" id="pdrDownload">匯出 UTF-8 文字檔</button></div>
+    <div class="pdr-actions"><button type="button" id="pdrMark">為此頁加書籤</button><select aria-label="本機書籤" id="pdrBookmarks"></select><button type="button" id="pdrJump">前往書籤</button><button type="button" id="pdrRemove">移除書籤</button><button type="button" id="pdrEdit">送至 PalmDOC 製作區</button></div>
   </div>
 </section>
 <style>
@@ -21,70 +21,8 @@
   "use strict";
   const root=document.getElementById("pdr");
   const el=id=>root.querySelector("#pdr"+id);
-  const maxBytes=48*1024*1024;
+  /* SHARED_PDB_READER */
   const pageSize=2400;
-  const broken=message=>{throw new Error(message)};
-  function decode(bytes,choice){
-    if(choice!=="auto")return new TextDecoder(choice).decode(bytes);
-    for(const enc of ["utf-8","big5"]){try{return new TextDecoder(enc,{fatal:true}).decode(bytes)}catch{}}
-    return new TextDecoder("windows-1252").decode(bytes);
-  }
-  function parsePdb(bytes){
-    if(bytes.length<78)broken("檔頭不足 78 位元組。");
-    const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
-    const count=view.getUint16(76), resource=Boolean(view.getUint16(32)&1);
-    const step=resource?10:8, end=78+count*step;
-    if(end>bytes.length)broken("記錄目錄長度超過檔案。");
-    const code=(at,size)=>String.fromCharCode(...bytes.subarray(at,at+size));
-    const records=[];
-    for(let i=0;i<count;i++){
-      const at=78+step*i,start=view.getUint32(at+(resource?6:0));
-      if(start<end||start>bytes.length)broken("第 "+i+" 筆記錄的位置無效。");
-      const id=resource?code(at,4)+" / "+view.getUint16(at+4):((bytes[at+5]<<16)|(bytes[at+6]<<8)|bytes[at+7]).toString(16).padStart(6,"0");
-      records.push({start,end:0,id});
-    }
-    const sorted=[...records].sort((a,b)=>a.start-b.start);
-    sorted.forEach((entry,i)=>{entry.end=i+1<sorted.length?sorted[i+1].start:bytes.length});
-    const n=bytes.subarray(0,32).indexOf(0);
-    return {records,type:code(60,4),creator:code(64,4),name:bytes.subarray(0,n<0?32:n),resource,chained:view.getUint32(72)!==0};
-  }
-  function inflate(block,out,start,limit){
-    let pos=start;
-    const put=byte=>{if(pos>=limit)broken("展開後的記錄長度超過檔頭宣告。");out[pos++]=byte};
-    for(let i=0;i<block.length;){
-      const c=block[i++];
-      if(c===0||(c>=9&&c<128)){put(c);continue}
-      if(c<=8){
-        if(i+c>block.length)broken("壓縮記錄中的文字區段不完整。");
-        for(let j=0;j<c;j++)put(block[i++]);
-      }else if(c>=192){put(32);put(c^128)}
-      else{
-        if(i===block.length)broken("壓縮記錄的參照不完整。");
-        const v=((c&63)<<8)|block[i++], distance=v>>3;
-        if(!distance||distance>pos-start)broken("壓縮記錄的參照位置無效。");
-        for(let j=0;j<(v&7)+3;j++)put(out[pos-distance]);
-      }
-    }
-    return pos;
-  }
-  function extract(bytes,db){
-    const head=db.records[0];
-    if(!head||head.end-head.start<16)broken("PalmDOC 缺少完整的文件檔頭。");
-    const v=new DataView(bytes.buffer,bytes.byteOffset+head.start,head.end-head.start);
-    const compression=v.getUint16(0), length=v.getUint32(4), count=v.getUint16(8), blockSize=v.getUint16(10);
-    if(![1,2].includes(compression))broken("這個 PalmDOC 的壓縮或保護方式尚未支援。");
-    if(length>maxBytes||count>=db.records.length||(!blockSize&&length)||length>count*blockSize)broken("PalmDOC 的文件長度或記錄數無法驗證。");
-    const out=new Uint8Array(length);let pos=0;
-    for(let i=1;i<=count;i++){
-      const r=db.records[i],block=bytes.subarray(r.start,r.end);
-      const limit=Math.min(out.length,pos+blockSize);
-      if(compression===2){pos=inflate(block,out,pos,limit);continue}
-      if(block.length>limit-pos)broken("文字記錄超過檔頭宣告的長度。");
-      out.set(block,pos);pos+=block.length;
-    }
-    if(pos!==length)broken("正文未達檔頭宣告的長度。");
-    return out;
-  }
   let bytes,db,plain,currentFile,filename="",ticket=0,title="",body="",page=0,recordPage=0,key="",marks=[],chapters=[],hit=-1,query="",pageStarts=[];
   function options(select,rows){select.replaceChildren(...rows.map(([label,value])=>new Option(label,String(value))))}
   function records(){
@@ -154,10 +92,7 @@
         const dt=document.createElement("dt"),dd=document.createElement("dd");dt.textContent=label;dd.textContent=value;stats.append(dt,dd);
       }
       records();el("Diagnostics").hidden=false;
-      if(db.chained){el("Status").textContent="這是串接式記錄目錄，僅顯示首段結構。";return}
-      if(db.type!=="TEXt"||db.creator!=="REAd"||db.resource){
-        el("Status").textContent=db.type==="SDoc"&&db.creator==="SilX"?"已辨識為圖文 PDB。可展開檔案結構，正文請以相容閱讀器開啟。":"已讀取檔案結構，此格式尚未支援正文閱讀。";el("Diagnostics").open=true;return;
-      }
+      try{requireTextFormat(db)}catch(error){el("Diagnostics").open=true;throw error}
       plain=extract(b,db);
       el("Reading").hidden=false;renderBody();el("Status").textContent="PalmDOC 正文已載入。";
     }catch(e){el("Status").textContent=e.message;el("Reading").hidden=true}

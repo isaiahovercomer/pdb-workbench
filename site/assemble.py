@@ -12,7 +12,7 @@ modules = [
     ('batch', '批次製書', 'ixl'),
     ('editor', '詩歌與書報', 'book'),
     ('capture', '網頁合訂', 'capture'),
-    ('reader', '閱讀書架', 'reader'),
+    ('reader', 'PDB 轉 TXT', 'reader'),
     ('settings', '轉檔環境', 'settings'),
 ]
 page = (source / 'base.html').read_text(encoding='utf-8')
@@ -24,6 +24,9 @@ page = re.sub(r'<nav aria-label="瀏覽器工具">.*?</nav>',
 panels = []
 for key,label,name in modules:
     fragment = (source / (name+'-module.html')).read_text(encoding='utf-8')
+    if name == 'reader':
+        reader = (source.parent/'skills/pdb-workbench/scripts/reader.cjs').read_text(encoding='utf-8')
+        fragment = fragment.replace('/* SHARED_PDB_READER */',reader.split('module.exports=')[0])
     panels.append(f'<section id="{key}" aria-label="{label}" hidden>\n{fragment}\n</section>')
 page = page.replace('<p class="footer">','\n'.join(panels)+'\n<p class="footer">',1)
 guide = '''<details class="card" style="margin:18px 0"><summary style="cursor:pointer;font-weight:bold">格式、原廠引擎與專案參考</summary><p>PalmDOC 可直接在瀏覽器製作與閱讀。圖文 PDB（SDoc / SilX）目前提供結構檢視；寫入及執行 IXL 轉檔設定需使用 Windows 原廠引擎。在 Windows 工作台執行 Run-Project.cmd，可選取 .ixl 和選用的 .ixs，確認目的地後批次轉檔。排程時間寫在 IXL 裡，執行時需要支援排程的原廠程式。</p><p>網頁合訂僅能直接抓取允許瀏覽器讀取的網站。也可以選取已存好的 HTML 資料夾。書架和編輯草稿儲存在目前瀏覽器，請使用匯出功能備份。</p><p>功能研究參考 <a href="https://github.com/jontey/YPSongbook">YPSongbook</a>、<a href="https://github.com/samortiz/ministry">ministry</a>、<a href="https://github.com/jichu4n/palm-pdb">palm-pdb</a>、<a href="https://github.com/atang0925/HarmonyPDB-Next">HarmonyPDB-Next</a> 與 <a href="https://github.com/lxmx/PyPlucker">PyPlucker</a>。工作頁內的功能採獨立實作。</p></details>'''

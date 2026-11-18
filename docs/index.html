@@ -11,7 +11,7 @@ nav{display:flex;gap:8px;border-bottom:1px solid var(--edge);margin-bottom:20px}
 <header><div class="bar wrap"><div class="brand"><span class="icon" aria-hidden="true">≡</span> PDB 文件工作台</div></div></header>
 <main class="wrap">
 <section class="hero"><div><h1>電子書製作工作台</h1><p>把網頁、書報與詩歌編成一本書。選擇工作區，即可開始製作、轉檔或閱讀。</p><a class="primary" href="./workbench.zip" download>下載 Windows 轉檔工作台</a></div><div class="bookplate" aria-hidden="true"><b>PDB</b><span>PDB · EPUB</span></div></section>
-<nav class="toolsbar" aria-label="工作區"><button type="button" id="projectTab" class="active" aria-pressed="true" aria-controls="project">快速專案</button><button type="button" id="batchTab" class="" aria-pressed="false" aria-controls="batch">批次製書</button><button type="button" id="editorTab" class="" aria-pressed="false" aria-controls="editor">詩歌與書報</button><button type="button" id="captureTab" class="" aria-pressed="false" aria-controls="capture">網頁合訂</button><button type="button" id="readerTab" class="" aria-pressed="false" aria-controls="reader">閱讀書架</button><button type="button" id="buildTab" class="" aria-pressed="false" aria-controls="build">製作 PalmDOC</button><button type="button" id="inspectTab" class="" aria-pressed="false" aria-controls="inspect">快速辨識</button><button type="button" id="settingsTab" class="" aria-pressed="false" aria-controls="settings">轉檔環境</button></nav>
+<nav class="toolsbar" aria-label="工作區"><button type="button" id="projectTab" class="active" aria-pressed="true" aria-controls="project">快速專案</button><button type="button" id="batchTab" class="" aria-pressed="false" aria-controls="batch">批次製書</button><button type="button" id="editorTab" class="" aria-pressed="false" aria-controls="editor">詩歌與書報</button><button type="button" id="captureTab" class="" aria-pressed="false" aria-controls="capture">網頁合訂</button><button type="button" id="readerTab" class="" aria-pressed="false" aria-controls="reader">PDB 轉 TXT</button><button type="button" id="buildTab" class="" aria-pressed="false" aria-controls="build">製作 PalmDOC</button><button type="button" id="inspectTab" class="" aria-pressed="false" aria-controls="inspect">快速辨識</button><button type="button" id="settingsTab" class="" aria-pressed="false" aria-controls="settings">轉檔環境</button></nav>
 <section id="project" class="grid"><form id="projectForm" class="card"><h2>建立 PDB 轉檔專案</h2><p class="sub">設定書名、來源與輸出位置，下載 PDB 轉檔工具 可開啟的 .ixl 專案。</p>
 <label for="ixTitle">書名</label><input id="ixTitle" required placeholder="例如：讀書筆記">
 <label for="ixSources">來源網址或 Windows 完整路徑（每行一筆）</label><textarea id="ixSources" required style="min-height:99px" placeholder="https://example.org/book/index.html&#10;C:\Books\notes.html"></textarea>
@@ -569,20 +569,20 @@ get('go').onclick=async()=>{
 </section>
 
 </section>
-<section id="reader" aria-label="閱讀書架" hidden>
+<section id="reader" aria-label="PDB 轉 TXT" hidden>
 <section class="card" id="pdr">
-  <h2>閱讀 PDB 電子書</h2>
+  <h2>PDB 轉純文字與閱讀</h2>
   <div class="twocol"><div><label for="pdrFile">開啟本機 PDB 或 PRC</label><input id="pdrFile" type="file" accept=".pdb,.prc"></div><div><label for="pdrEncoding">文字編碼</label><select id="pdrEncoding"><option value="auto">自動判讀</option><option value="big5">繁體中文 Big5</option><option value="utf-8">UTF-8</option><option value="windows-1252">西歐文字</option></select></div></div>
-  <p class="status" id="pdrStatus" role="status">可閱讀 PalmDOC 正文，並檢視 不同 PDB 的記錄結構。</p>
+  <p class="status" id="pdrStatus" role="status">選取 PalmDOC 電子書即可預覽全文並下載 UTF-8 純文字。若中文字顯示異常，可切換為 Big5。</p>
   <details id="pdrShelf"><summary>本機書架</summary><div class="pdr-actions"><button type="button" id="pdrSaveBook" disabled>將目前檔案加入書架</button><select id="pdrShelfBook" aria-label="已儲存的書籍"></select><button type="button" id="pdrOpenBook" disabled>開啟藏書</button><button type="button" id="pdrDeleteBook" disabled>移出書架</button></div><p id="pdrShelfStatus" class="note" role="status">書籍儲存在目前使用的瀏覽器。</p></details>
   <details hidden id="pdrDiagnostics"><summary>檔案結構與記錄</summary><dl id="pdrStats"></dl><div class="pdr-actions"><button type="button" id="pdrRecordPrev">前 50 筆</button><span id="pdrRecordRange"></span><button type="button" id="pdrRecordNext">後 50 筆</button></div>
   <div class="pdr-table"><table><thead><tr><th>記錄編號</th><th>檔案位置</th><th>長度（位元組）</th><th>記錄識別碼</th></tr></thead><tbody id="pdrRecords"></tbody></table></div></details>
-  <div hidden id="pdrReading"><h3 id="pdrBook"></h3>
+  <div hidden id="pdrReading"><button type="button" id="pdrDownload">下載全書純文字（.txt）</button><h3 id="pdrBook"></h3>
     <div class="twocol"><div><label for="pdrChapter">章節索引</label><select id="pdrChapter"></select></div><div><label for="pdrFont">閱讀字級</label><select id="pdrFont"><option value="18">標準</option><option value="22">大字</option><option value="27">特大</option></select></div></div>
     <label for="pdrQuery">全文搜尋</label><div class="pdr-actions"><input id="pdrQuery" type="search"><button type="button" id="pdrFind">搜尋</button><button type="button" id="pdrFindNext">下一筆</button><span id="pdrMatches" role="status"></span></div>
     <div class="pdr-actions"><button type="button" id="pdrPrev">上一頁</button><span id="pdrPage"></span><button type="button" id="pdrNext">下一頁</button><button type="button" id="pdrNight" aria-pressed="false">夜間閱讀</button></div>
     <article class="pdr-page" id="pdrText" tabindex="0" aria-label="正文"></article>
-    <div class="pdr-actions"><button type="button" id="pdrMark">為此頁加書籤</button><select aria-label="本機書籤" id="pdrBookmarks"></select><button type="button" id="pdrJump">前往書籤</button><button type="button" id="pdrRemove">移除書籤</button><button type="button" id="pdrEdit">送至 PalmDOC 製作區</button><button type="button" id="pdrDownload">匯出 UTF-8 文字檔</button></div>
+    <div class="pdr-actions"><button type="button" id="pdrMark">為此頁加書籤</button><select aria-label="本機書籤" id="pdrBookmarks"></select><button type="button" id="pdrJump">前往書籤</button><button type="button" id="pdrRemove">移除書籤</button><button type="button" id="pdrEdit">送至 PalmDOC 製作區</button></div>
   </div>
 </section>
 <style>
@@ -593,8 +593,7 @@ get('go').onclick=async()=>{
   "use strict";
   const root=document.getElementById("pdr");
   const el=id=>root.querySelector("#pdr"+id);
-  const maxBytes=48*1024*1024;
-  const pageSize=2400;
+    const maxBytes=48*1024*1024;
   const broken=message=>{throw new Error(message)};
   function decode(bytes,choice){
     if(choice!=="auto")return new TextDecoder(choice).decode(bytes);
@@ -657,6 +656,15 @@ get('go').onclick=async()=>{
     if(pos!==length)broken("正文未達檔頭宣告的長度。");
     return out;
   }
+  function requireTextFormat(db){
+    if(db.chained) broken("串接式記錄目錄目前僅支援結構檢視。");
+    if(db.resource || db.type!=="TEXt" || db.creator!=="REAd"){
+      if(db.type==="SDoc" && db.creator==="SilX") broken("圖文 PDB（SDoc / SilX）請在相容的 Windows 閱讀器開啟，選 File → Save As 另存純文字。文件須允許轉出。");
+      broken("尚未支援正文轉檔："+db.type+" / "+db.creator);
+    }
+  }
+
+  const pageSize=2400;
   let bytes,db,plain,currentFile,filename="",ticket=0,title="",body="",page=0,recordPage=0,key="",marks=[],chapters=[],hit=-1,query="",pageStarts=[];
   function options(select,rows){select.replaceChildren(...rows.map(([label,value])=>new Option(label,String(value))))}
   function records(){
@@ -726,10 +734,7 @@ get('go').onclick=async()=>{
         const dt=document.createElement("dt"),dd=document.createElement("dd");dt.textContent=label;dd.textContent=value;stats.append(dt,dd);
       }
       records();el("Diagnostics").hidden=false;
-      if(db.chained){el("Status").textContent="這是串接式記錄目錄，僅顯示首段結構。";return}
-      if(db.type!=="TEXt"||db.creator!=="REAd"||db.resource){
-        el("Status").textContent=db.type==="SDoc"&&db.creator==="SilX"?"已辨識為圖文 PDB。可展開檔案結構，正文請以相容閱讀器開啟。":"已讀取檔案結構，此格式尚未支援正文閱讀。";el("Diagnostics").open=true;return;
-      }
+      try{requireTextFormat(db)}catch(error){el("Diagnostics").open=true;throw error}
       plain=extract(b,db);
       el("Reading").hidden=false;renderBody();el("Status").textContent="PalmDOC 正文已載入。";
     }catch(e){el("Status").textContent=e.message;el("Reading").hidden=true}
